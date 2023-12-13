@@ -9,6 +9,7 @@ icecream = "*"
 scikit-image = "*"
 path = "*"
 matplotlib = "*"
+pybaselines = "*"
 
 [dev-packages]
 
