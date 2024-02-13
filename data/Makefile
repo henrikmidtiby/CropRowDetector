@@ -17,5 +17,6 @@ get_example_data_4:
 
 get_example_data_5:
 	gdal_translate -srcwin 16000 7800 1000 1000 "/home/hemi/Nextcloud/Shared/2023/2023-03-15 Præcisionsfrøavl - data/Processed/2023-04-17 Rødsvingel 1. års Wagner JSJ 3/orthomosaics/2023-04-17 Rødsvingel 1. års Wagner JSJ 3_ORTHO.tif" 2023-04-17_Rødsvingel_1._års_wagner_jsj_3.tif
+	gdal_translate -srcwin 16000 7800 300 300 "/home/hemi/Nextcloud/Shared/2023/2023-03-15 Præcisionsfrøavl - data/Processed/2023-04-17 Rødsvingel 1. års Wagner JSJ 3/orthomosaics/2023-04-17 Rødsvingel 1. års Wagner JSJ 3_ORTHO.tif" 2023-04-17_Rødsvingel_1._års_wagner_jsj_3_small.tif
 
 
