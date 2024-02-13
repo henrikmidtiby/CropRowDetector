@@ -11,7 +11,7 @@ import numpy
 
 setup(
     ext_modules=cythonize(
-        "cython_test.pyx", compiler_directives={"language_level": "3"}, annotate=True
+        "hough_transform_grayscale.pyx", compiler_directives={"language_level": "3"}, annotate=True
     ),
     include_dirs=[numpy.get_include()],
 )
