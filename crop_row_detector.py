@@ -263,10 +263,6 @@ class crop_row_detector:
         # print('Calculation of color distances: ', proc_time)
 
     def calculate_crop_rows_in_orthomosaic(self, filename_segmented_orthomosaic):
-        """
-        For all pixels in the orthomosaic, calculate the Mahalanobis distance 
-        to the reference color.
-        """
         with rasterio.open(filename_segmented_orthomosaic) as src:
             self.resolution = src.res
             self.crs = src.crs
