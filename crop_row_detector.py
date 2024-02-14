@@ -87,13 +87,16 @@ class crop_row_detector:
             self.ensure_parent_directory_exist(self.output_tile_location + "/debug_images/")
             self.ensure_parent_directory_exist(self.output_tile_location + "/debug_images/" + f'{self.tile_number}' + "/")
         if self.generate_debug_images:
-            path = self.output_tile_location + "/debug_images/" + f'{self.tile_number}' + "/" + output_path
+            path = self.get_debug_output_filepath(output_path)
             self.ensure_parent_directory_exist(path)
             cv2.imwrite(path, img)
 
+    def get_debug_output_filepath(self, output_path):
+        return self.output_tile_location + "/debug_images/" + f'{self.tile_number}' + "/" + output_path
+
     def write_plot_to_file(self, output_path):
         if self.generate_debug_images:
-            path = self.output_tile_location + "/debug_images/" + f'{self.tile_number}' + "/" + output_path
+            path = self.get_debug_output_filepath(output_path)
             self.ensure_parent_directory_exist(path)
             plt.savefig(path, dpi=300)
     
