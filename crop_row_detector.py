@@ -124,11 +124,11 @@ class crop_row_detector:
         direction_response = np.sum(np.square(self.h), axis=0)
         baseline_fitter = Baseline(self.theta*180/np.pi, check_finite=False)
         
-        self.direction_with_most_energy_idx = np.argmax(direction_response)
-        self.direction = self.theta[self.direction_with_most_energy_idx]
         # Normalize the direction response
         Direc_energi = np.log(direction_response) - baseline_fitter.mor(np.log(direction_response), half_window=30)[0]
         max = np.max(Direc_energi)
+        direction_with_most_energy_idx = np.argmax(Direc_energi)
+        self.direction = self.theta[direction_with_most_energy_idx]
         
         # Plot the direction response and normalized direction response
         plt.figure(figsize=(16, 9))
