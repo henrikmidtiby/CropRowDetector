@@ -216,8 +216,11 @@ class crop_row_detector:
         for peak_idx in self.peaks:
             dist = self.d[peak_idx]
             angle = self.direction
-            y0, y1 = (dist - origin * np.cos(angle)) / np.sin(angle)
-            cv2.line(segmented_annotated, (0, int(y0)), (segmented_annotated.shape[1], int(y1)), (0, 0, 255), 1)
+            temp = self.get_line_ends_within_image(dist, angle, self.img)
+            cv2.line(segmented_annotated, 
+                     (temp[0][0], temp[0][1]), 
+                     (temp[1][0], temp[1][1]), 
+                     (0, 0, 255), 1)
         self.segmented_annotated = segmented_annotated
         self.write_image_to_file("45_detected_crop_rows_on_segmented_image.png", segmented_annotated)
 
