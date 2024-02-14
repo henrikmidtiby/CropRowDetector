@@ -8,43 +8,15 @@ from scipy.signal import find_peaks
 import argparse
 from icecream import ic
 from pybaselines import Baseline, utils
+from datetime import datetime
+
+import cython_test
+
+import time
+
 
 # python3 crop_row_detector.py 2023-05-01_Alm_rajgraes_cleopatra_jsj_imput_image --generate_debug_images True --debug_image_folder output 
-def h_line(img, theta = None):
-    # Rho and Theta ranges
-    if theta is None:
-        thetas = np.deg2rad(np.arange(-90.0, 90.0))
-    else:
-        thetas = theta
-    width, height = img.shape
-    diag_len = int(np.ceil(np.sqrt(width * width + height * height)))   # max_dist
-    rhos = np.linspace(-diag_len, diag_len, diag_len * 2)
 
-    # Cache some resuable values
-    cos_t = np.cos(thetas)
-    sin_t = np.sin(thetas)
-    num_thetas = len(thetas)
-
-    # Hough accumulator array of theta vs rho
-    accumulator = np.zeros((2 * diag_len, num_thetas), dtype=np.uint64)
-    y_idxs, x_idxs = np.nonzero(img)  # (row, col) indexes to edges
-    z = 0
-    # Vote in the hough accumulator
-    for i in range(len(x_idxs)):
-        x = x_idxs[i]
-        y = y_idxs[i]
-        
-        for t_idx in range(num_thetas):
-        # Calculate rho. diag_len is added for a positive index
-            rho = round(x * cos_t[t_idx] + y * sin_t[t_idx]) + diag_len
-            accumulator[rho, t_idx] += 1#*img[y,x]
-        if z == 1000:
-            ic(img[y,x], x, y)
-            z = 0
-        else:
-            z += 1
-    print("done")
-    return accumulator, thetas, rhos
 
 class crop_row_detector:
     def __init__(self):
@@ -62,7 +34,8 @@ class crop_row_detector:
         self.exg = None
         self.gray = None
         self.HSV_gray = None
-
+        self.save_with_name = None
+        self.date_time = str(datetime.now().strftime("%Y_%m_%d_%H:%M"))
 
     def ensure_parent_directory_exist(self, path):
         temp_path = Path(path).parent
@@ -71,13 +44,21 @@ class crop_row_detector:
 
     def write_image_to_file(self, output_path, img):
         if self.generate_debug_images:
-            self.ensure_parent_directory_exist(self.output_folder + "/" + output_path)
-            cv2.imwrite(self.output_folder + "/" + output_path, img)
+            if self.save_with_name:
+                self.ensure_parent_directory_exist(self.output_folder + "/" + output_path)
+                cv2.imwrite(self.output_folder + "/" + output_path, img)
+            else:
+                self.ensure_parent_directory_exist(self.date_time + "/" + output_path)
+                cv2.imwrite(self.date_time + "/" + output_path, img)
 
     def write_plot_to_file(self, output_path):
         if self.generate_debug_images:
-            self.ensure_parent_directory_exist(self.output_folder + "/" + output_path)
-            plt.savefig(self.output_folder + "/" + output_path, dpi=300)
+            if self.save_with_name:
+                self.ensure_parent_directory_exist(self.output_folder + "/" + output_path)
+                plt.savefig(self.output_folder + "/" + output_path, dpi=300)
+            else:
+                self.ensure_parent_directory_exist(self.date_time + "/" + output_path)
+                plt.savefig(self.date_time + "/" + output_path, dpi=300)
 
     def segment_image(self, img):
         r = img[:, :, 2]
@@ -109,42 +90,29 @@ class crop_row_detector:
         self.img = img
         self.write_image_to_file("31_loaded_image.png", self.img)
         self.write_image_to_file("32_segmented_image.png", self.thresholded_image.astype(np.uint8) * 255)
-        self.write_image_to_file("32_test.png", self.exg.astype(np.uint8))
+        self.write_image_to_file("32_test.png", self.exg)#.astype(np.uint8))
         self.write_image_to_file("32_segmented_image_inverse.png", 255 - self.thresholded_image.astype(np.uint8) * 255)
-
-    def running_average(self, h):
-        # Average hough lines to remove clutter
-        hough_corrected = h.copy()
-        for i in range(0, h.shape[0]-2):
-            for j in range(0, h.shape[1]):
-                try:
-                    #Could divide by 5, but this is faster and gives similar results, as minMaxLoc is used later
-                    hough_corrected[i,j] = (h[i-2,j]+h[i-1,j]+h[i,j]+h[i+1,j]+h[i+2,j])
-                    #hough_corrected[i,j] = (h[i,j]+h[i+1,j])
-                    #hough_corrected[i,j] = (h[i,j])
-                except Exception as e:
-                    print(e)
-
-        hough_corrected = np.array(hough_corrected)
-        min_h, max_h, _, _ = cv2.minMaxLoc(hough_corrected)
-        self.h = hough_corrected
-        self.max_value = max_h
 
     def apply_hough_lines(self):
         # Apply the hough transform
         number_of_angles = 8*360
         tested_angles = np.linspace(-np.pi / 2, np.pi / 2, number_of_angles)
-        h_new, theta_new, d_new = h_line(self.HSV_gray, theta=tested_angles)
-        ic(d_new.shape)
-        ic(d_new)
-        h, theta, d = hough_line(self.HSV_gray, theta=tested_angles)
-        ic(d.shape)
-        ic(d)
-        #h, theta, d = hough_line(self.thresholded_image, theta=tested_angles)
+        min_h, max_h, _, _ = cv2.minMaxLoc(self.HSV_gray)
+        ic(max_h)
+        start_time = time.time()
+        h, theta, d = cython_test.hough_line(self.HSV_gray, theta=tested_angles)
+        #h, theta, d = hough_line(self.HSV_gray, theta=tested_angles)
+        print("--- %s seconds ---" % (time.time() - start_time))
+        #h, theta, d = hough_line(self.gray, theta=tested_angles)
+        #ic(d.shape)
+        #ic(d)
+        
 
         self.theta = theta
         self.d = d
-        self.running_average(h)
+        self.h = h
+        self.max_value = cv2.minMaxLoc(h)[1]
+        #self.running_average(h)
         self.write_image_to_file("35_hough_image.png", 255 * self.h / self.max_value)
 
     def determine_dominant_row(self):
@@ -231,12 +199,12 @@ class crop_row_detector:
     def convert_to_grayscale(self):
         HSV = cv2.cvtColor(self.img, cv2.COLOR_BGR2HSV)
         HSV_gray = HSV[:,:,2].copy()
-        HSV_gray = (1-HSV_gray/255)*255
+        #HSV_gray = 255-HSV_gray
         self.write_image_to_file("02_hsv.png", HSV_gray)
         for i in range(0, HSV_gray.shape[0]):
             for j in range(0, HSV_gray.shape[1]):
-                if HSV[i,j,0] > 40 and HSV[i,j,0] < 70:
-                    HSV_gray[i,j] = HSV_gray[i,j]
+                if HSV[i,j,0] > 45 and HSV[i,j,0] < 65:
+                    HSV_gray[i,j] = 255-HSV_gray[i,j]
                 else:
                     HSV_gray[i,j] = 0
         
@@ -432,6 +400,11 @@ parser.add_argument('--generate_debug_images',
                     default = False,
                     type=bool, 
                     help = "If set to true, debug images will be generated, defualt is False")
+parser.add_argument('--save_with_name', 
+                    default = False,
+                    type=bool, 
+                    help = 'If set to true, the debug_image_folder can be used to specify the ' 
+                           'folder name, if set to false, the folder will be named with the current time')
 parser.add_argument('--debug_image_folder', 
                     default = "output",
                     type=str, 
@@ -441,9 +414,14 @@ args = parser.parse_args()
 crd = crop_row_detector()
 crd.generate_debug_images = args.generate_debug_images
 crd.output_folder = args.debug_image_folder
+crd.save_with_name = args.save_with_name
 #crd.load_and_segment_image(args.filename)
 #crd.convert_to_grayscale()
 crd.run_all(args.filename)
 
 #detect_crop_rows(args.filename)
+
+
+
+
 
