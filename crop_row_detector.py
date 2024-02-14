@@ -451,6 +451,7 @@ crd.run_specific_tile = args.run_specific_tile
 crd.tile_size = args.tile_size
 crd.output_tile_location = args.output_tile_location
 crd.filename_orthomosaic = args.orthomosaic
+crd.threshold_level = 12
 crd.main(args.segmented_orthomosaic)
 
 
