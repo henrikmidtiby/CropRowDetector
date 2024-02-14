@@ -1,15 +1,12 @@
 import cv2
 import numpy as np
 import pandas as pd
-from skimage.transform import hough_line
-from skimage import filters
 from path import Path
 import matplotlib.pyplot as plt
 from scipy.signal import find_peaks
 import argparse
 from icecream import ic
-from pybaselines import Baseline, utils
-from datetime import datetime
+from pybaselines import Baseline
 
 import rasterio
 from rasterio.windows import Window
