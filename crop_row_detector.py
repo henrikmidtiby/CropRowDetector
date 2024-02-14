@@ -241,7 +241,8 @@ class crop_row_detector:
         for i in range(0, self.gray.shape[0]):
             for j in range(0, self.gray.shape[1]):
                 if self.gray[i,j] < self.threshold_level:
-                    gray_temp[i,j] = 255-gray_temp[i,j]
+                    # gray_temp[i,j] = 255-gray_temp[i,j]
+                    gray_temp[i,j] = 255
                 else:
                     gray_temp[i,j] = 0
         self.gray = gray_temp
