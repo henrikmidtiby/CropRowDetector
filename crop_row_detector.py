@@ -1,5 +1,6 @@
 import cv2
 import numpy as np
+import pandas as pd
 from skimage.transform import hough_line
 from skimage import filters
 from path import Path
