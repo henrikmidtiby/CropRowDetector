@@ -181,12 +181,15 @@ class crop_row_detector:
                      (temp[1][0], temp[1][1]), (0, 0, 255), 1)
 
         if self.tile_boundry:
-            cv2.line(self.img, (0, 0), (self.img.shape[1]-1, 0), (0, 0, 255), 1)
-            cv2.line(self.img, (0, self.img.shape[0]-1), (self.img.shape[1]-1, self.img.shape[0]-1), (0, 0, 255), 1)
-            cv2.line(self.img, (0, 0), (0, self.img.shape[0]-1), (0, 0, 255), 1)
-            cv2.line(self.img, (self.img.shape[1]-1, 0), (self.img.shape[1]-1, self.img.shape[0]-1), (0, 0, 255), 1)
-            cv2.putText(self.img, f'{self.tile_number}', (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 255), 2, cv2.LINE_AA)
+            self.add_boundary_and_number_to_tile()
         self.write_image_to_file("40_detected_crop_rows.png", self.img)
+
+    def add_boundary_and_number_to_tile(self):
+        cv2.line(self.img, (0, 0), (self.img.shape[1]-1, 0), (0, 0, 255), 1)
+        cv2.line(self.img, (0, self.img.shape[0]-1), (self.img.shape[1]-1, self.img.shape[0]-1), (0, 0, 255), 1)
+        cv2.line(self.img, (0, 0), (0, self.img.shape[0]-1), (0, 0, 255), 1)
+        cv2.line(self.img, (self.img.shape[1]-1, 0), (self.img.shape[1]-1, self.img.shape[0]-1), (0, 0, 255), 1)
+        cv2.putText(self.img, f'{self.tile_number}', (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 255), 2, cv2.LINE_AA)
 
     def get_line_ends_within_image(self, dist, angle, img):
         x_val_range = np.array((0, img.shape[1]))
