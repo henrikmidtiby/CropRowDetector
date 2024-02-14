@@ -130,8 +130,9 @@ class crop_row_detector:
         # Plot the direction response and normalized direction response
         plt.figure(figsize=(16, 9))
         plt.plot(self.theta*180/np.pi, np.log(direction_response), color='blue')
-        plt.plot(self.theta*180/np.pi, Direc_energi, color='orange')
         self.write_plot_to_file("36_direction_energies.png")
+        plt.plot(self.theta*180/np.pi, Direc_energi, color='orange')
+        self.write_plot_to_file("36_direction_energies_2.png")
         plt.close()
 
         plt.figure(figsize=(16, 9))
