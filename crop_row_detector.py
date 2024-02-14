@@ -175,27 +175,8 @@ class crop_row_detector:
         for peak_idx in self.peaks:
             dist = self.d[peak_idx]
             angle = self.direction
-            #y0, y1 = (dist - origin * np.cos(angle)) / np.sin(angle)
-            #print("y0: ", int(y0))
-            #print("y1: ", int(y1))
-            #cv2.line(self.img, (0, int(y0)), (self.img.shape[1], int(y1)), (0, 0, 255), 1)
-            
-            # y0 left and y1 right, x0 top and x1 bottom
-            x_val_range = np.array((0, self.img.shape[1]))
-            y_val_range = np.array((0, self.img.shape[0]))
-            # x * cos(t) + y * sin(t) = r
-            y0, y1 = (dist - x_val_range * np.cos(angle)) / np.sin(angle)
-            x0, x1 = (dist - y_val_range * np.sin(angle)) / np.cos(angle)
-            temp = []
-            if int(y0) > 0 and int(y0) < self.img.shape[0]:
-                temp.append([0, int(y0)])
-            if int(y1) > 0 and int(y1) < self.img.shape[0]:
-                temp.append([self.img.shape[0], int(y1)])
-            if int(x0) > 0 and int(x0) < self.img.shape[1]:
-                temp.append([int(x0), 0])
-            if int(x1) > 0 and int(x1) < self.img.shape[1]:
-                temp.append([int(x1),self.img.shape[0]])
-            print("temp: ", temp)
+            temp = self.get_line_ends_within_image(dist, angle, self.img)
+            # print("temp: ", temp)
             cv2.line(self.img, (temp[0][0], temp[0][1]), 
                      (temp[1][0], temp[1][1]), (0, 0, 255), 1)
 
@@ -206,6 +187,23 @@ class crop_row_detector:
             cv2.line(self.img, (self.img.shape[1]-1, 0), (self.img.shape[1]-1, self.img.shape[0]-1), (0, 0, 255), 1)
             cv2.putText(self.img, f'{self.tile_number}', (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 255), 2, cv2.LINE_AA)
         self.write_image_to_file("40_detected_crop_rows.png", self.img)
+
+    def get_line_ends_within_image(self, dist, angle, img):
+        x_val_range = np.array((0, img.shape[1]))
+        y_val_range = np.array((0, img.shape[0]))
+        # x * cos(t) + y * sin(t) = r
+        y0, y1 = (dist - x_val_range * np.cos(angle)) / np.sin(angle)
+        x0, x1 = (dist - y_val_range * np.sin(angle)) / np.cos(angle)
+        temp = []
+        if int(y0) > 0 and int(y0) < img.shape[0]:
+            temp.append([0, int(y0)])
+        if int(y1) > 0 and int(y1) < img.shape[0]:
+            temp.append([img.shape[0], int(y1)])
+        if int(x0) > 0 and int(x0) < img.shape[1]:
+            temp.append([int(x0), 0])
+        if int(x1) > 0 and int(x1) < img.shape[1]:
+            temp.append([int(x1), img.shape[0]])
+        return temp
 
     def draw_detected_crop_rows_on_segmented_image(self):
         segmented_annotated = self.gray.copy()
