@@ -205,6 +205,70 @@ class crop_row_detector:
             temp.append([int(x1), img.shape[0]])
         return temp
 
+    def measure_vegetation_coverage_in_crop_row(self):
+        # 1. Blur image with a uniform kernel
+        # Approx distance between crop rows is 16 pixels.
+        # I would prefer to have a kernel size that is not divisible by two.
+        temp = self.gray.astype(np.uint8) * 255.
+        vegetation_map = cv2.blur(temp, (10, 10))
+        self.write_image_to_file("60_vegetation_map.png", vegetation_map)
+
+        # 2. Sample pixel values along each crop row
+        #    - cv2.remap
+        # Hardcoded from earlier run of the algorithm.
+        # missing_plants_image = cv2.cvtColor(vegetation_map.astype(np.uint8), cv2.COLOR_GRAY2BGR)
+        missing_plants_image = self.img
+        df_missing_vegetation_list = []
+
+        for peak_idx in self.peaks:
+            dist = self.d[peak_idx]
+            angle = self.direction
+
+            # Determine sample locations
+            temp = self.get_line_ends_within_image(dist, angle, self.img)
+            start_point = (temp[0][0], temp[0][1])
+            distance_between_samples = 1
+            end_point = (temp[1][0], temp[1][1])
+            distance = np.linalg.norm(np.asarray(start_point) - np.asarray(end_point))
+            n_samples = np.ceil(distance / distance_between_samples)
+            # TODO: Pay attention to the direction between start_point and end_point
+            # angle should go in the same direction for this approach to work.
+            ic(start_point)
+            ic(end_point)
+            ic(angle)
+            ic(np.sin(angle), np.cos(angle))
+            x_sample_coords = start_point[0] - range(0, int(n_samples)) * np.sin(angle) * (1)
+            y_sample_coords = start_point[1] - range(0, int(n_samples)) * np.cos(angle) * (-1)
+            vegetation_samples = cv2.remap(vegetation_map, 
+                                        x_sample_coords.astype(np.float32), 
+                                        y_sample_coords.astype(np.float32), 
+                                        cv2.INTER_LINEAR)
+
+            DF = pd.DataFrame({'idx': peak_idx, 
+                               'x': x_sample_coords, 
+                            'y': y_sample_coords, 
+                            'vegetation': vegetation_samples.transpose()[0]})
+            df_missing_vegetation_list.append(DF)
+
+            missing_plants = DF[DF['vegetation'] < 60]
+            for index, location in missing_plants.iterrows():
+                cv2.circle(missing_plants_image, 
+                        (int(location['x']), int(location['y'])), 
+                        2, 
+                        (255, 255, 0), 
+                        -1)
+                
+        #filename = self.date_time + "/" + "64_vegetation_samples.csv"
+        #DF_combined = pd.concat(df_missing_vegetation_list)
+        #F_combined.to_csv(filename)
+        self.write_image_to_file("67_missing_plants_in_crop_line.png", missing_plants_image)
+    
+        # 3. Export to a csv file, include the following information
+        #    - row number and offset
+        #    - pixel coordinates
+        #    - vegetation coverage
+        
+
     def draw_detected_crop_rows_on_segmented_image(self):
         segmented_annotated = self.gray.copy()
         # Draw detected crop rows on the segmented image
@@ -376,6 +440,7 @@ class crop_row_detector:
         self.draw_detected_crop_rows_on_input_image()
         if self.generate_debug_images:
             self.draw_detected_crop_rows_on_segmented_image()
+            self.measure_vegetation_coverage_in_crop_row()
 
         # save results
         tile.ulc_global = [
