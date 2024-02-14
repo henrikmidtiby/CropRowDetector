@@ -113,6 +113,12 @@ class crop_row_detector:
 
         self.write_image_to_file("35_hough_image.png", 255 * self.h)
 
+        # Blur image using a 5 x 1 average filter
+        kernel = np.ones((5,1), np.float32) / 5
+        self.h = cv2.filter2D(self.h, -1, kernel)
+        self.write_image_to_file("35_hough_image_blurred.png", 255 * self.h)
+
+
     def determine_dominant_row(self):
         # Determine the dominant row direction
         direction_response = np.sum(np.square(self.h), axis=0)
