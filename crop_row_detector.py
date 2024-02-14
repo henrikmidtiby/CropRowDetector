@@ -456,7 +456,7 @@ class crop_row_detector:
         self.draw_detected_crop_rows_on_input_image()
         if self.generate_debug_images:
             self.draw_detected_crop_rows_on_segmented_image()
-            self.measure_vegetation_coverage_in_crop_row()
+        self.measure_vegetation_coverage_in_crop_row()
 
         # save results
         tile.ulc_global = [
