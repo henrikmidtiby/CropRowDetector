@@ -82,10 +82,6 @@ class crop_row_detector:
             temp_path.mkdir()
 
     def write_image_to_file(self, output_path, img): 
-        if self.tile_number == 0:
-            self.ensure_parent_directory_exist(self.output_tile_location + "/")
-            self.ensure_parent_directory_exist(self.output_tile_location + "/debug_images/")
-            self.ensure_parent_directory_exist(self.output_tile_location + "/debug_images/" + f'{self.tile_number}' + "/")
         if self.generate_debug_images:
             path = self.get_debug_output_filepath(output_path)
             self.ensure_parent_directory_exist(path)
