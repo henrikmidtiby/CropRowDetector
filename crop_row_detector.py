@@ -174,8 +174,12 @@ class crop_row_detector:
             angle = self.direction
             temp = self.get_line_ends_within_image(dist, angle, self.img)
             # print("temp: ", temp)
-            cv2.line(self.img, (temp[0][0], temp[0][1]), 
-                     (temp[1][0], temp[1][1]), (0, 0, 255), 1)
+            try:
+                cv2.line(self.img, (temp[0][0], temp[0][1]), 
+                         (temp[1][0], temp[1][1]), (0, 0, 255), 1)
+            except Exception as e:
+                print(e)
+                ic(temp)
 
         if self.tile_boundry:
             self.add_boundary_and_number_to_tile()
@@ -220,43 +224,54 @@ class crop_row_detector:
         missing_plants_image = self.img
         df_missing_vegetation_list = []
 
-        for peak_idx in self.peaks:
-            dist = self.d[peak_idx]
-            angle = self.direction
+        for counter, peak_idx in enumerate(self.peaks):
+            try:
+                dist = self.d[peak_idx]
+                angle = self.direction
 
-            # Determine sample locations
-            temp = self.get_line_ends_within_image(dist, angle, self.img)
-            start_point = (temp[0][0], temp[0][1])
-            distance_between_samples = 1
-            end_point = (temp[1][0], temp[1][1])
-            distance = np.linalg.norm(np.asarray(start_point) - np.asarray(end_point))
-            n_samples = np.ceil(distance / distance_between_samples)
-            # TODO: Pay attention to the direction between start_point and end_point
-            # angle should go in the same direction for this approach to work.
-            ic(start_point)
-            ic(end_point)
-            ic(angle)
-            ic(np.sin(angle), np.cos(angle))
-            x_sample_coords = start_point[0] - range(0, int(n_samples)) * np.sin(angle) * (1)
-            y_sample_coords = start_point[1] - range(0, int(n_samples)) * np.cos(angle) * (-1)
-            vegetation_samples = cv2.remap(vegetation_map, 
-                                        x_sample_coords.astype(np.float32), 
-                                        y_sample_coords.astype(np.float32), 
-                                        cv2.INTER_LINEAR)
+                # Determine sample locations
+                temp = self.get_line_ends_within_image(dist, angle, self.img)
+                start_point = (temp[0][0], temp[0][1])
+                distance_between_samples = 1
+                end_point = (temp[1][0], temp[1][1])
+                distance = np.linalg.norm(np.asarray(start_point) - np.asarray(end_point))
+                n_samples = np.ceil(distance / distance_between_samples)
+                # TODO: Pay attention to the direction between start_point and end_point
+                # angle should go in the same direction for this approach to work.
+                calculated_angle = -math.atan2(start_point[0] - end_point[0], start_point[1] - end_point[1])
+                if counter == 2:
+                    ic(angle)
+                    ic(calculated_angle)
+                if np.abs(angle - calculated_angle) > 0.1:
+                    #ic(angle)
+                    #ic(calculated_angle)
+                    #print("Angle might be wrong when sampling vegetatation coverage")
+                    #ic(np.abs(angle - calculated_angle))
+                    #angle += np.pi
+                    pass
 
-            DF = pd.DataFrame({'idx': peak_idx, 
-                               'x': x_sample_coords, 
-                            'y': y_sample_coords, 
-                            'vegetation': vegetation_samples.transpose()[0]})
-            df_missing_vegetation_list.append(DF)
+                x_sample_coords = start_point[0] - range(0, int(n_samples)) * np.sin(angle) * (1)
+                y_sample_coords = start_point[1] - range(0, int(n_samples)) * np.cos(angle) * (-1)
+                vegetation_samples = cv2.remap(vegetation_map, 
+                                            x_sample_coords.astype(np.float32), 
+                                            y_sample_coords.astype(np.float32), 
+                                            cv2.INTER_LINEAR)
 
-            missing_plants = DF[DF['vegetation'] < 60]
-            for index, location in missing_plants.iterrows():
-                cv2.circle(missing_plants_image, 
-                        (int(location['x']), int(location['y'])), 
-                        2, 
-                        (255, 255, 0), 
-                        -1)
+                DF = pd.DataFrame({'idx': peak_idx, 
+                                'x': x_sample_coords, 
+                                'y': y_sample_coords, 
+                                'vegetation': vegetation_samples.transpose()[0]})
+                df_missing_vegetation_list.append(DF)
+
+                missing_plants = DF[DF['vegetation'] < 60]
+                for index, location in missing_plants.iterrows():
+                    cv2.circle(missing_plants_image, 
+                            (int(location['x']), int(location['y'])), 
+                            2, 
+                            (255, 255, 0), 
+                            -1)
+            except Exception as e:
+                print(e)
                 
         #filename = self.date_time + "/" + "64_vegetation_samples.csv"
         #DF_combined = pd.concat(df_missing_vegetation_list)
@@ -278,10 +293,14 @@ class crop_row_detector:
             dist = self.d[peak_idx]
             angle = self.direction
             temp = self.get_line_ends_within_image(dist, angle, self.img)
-            cv2.line(segmented_annotated, 
-                     (temp[0][0], temp[0][1]), 
-                     (temp[1][0], temp[1][1]), 
-                     (0, 0, 255), 1)
+            try:
+                cv2.line(segmented_annotated, 
+                            (temp[0][0], temp[0][1]), 
+                            (temp[1][0], temp[1][1]), 
+                            (0, 0, 255), 1)
+            except Exception as e:
+                print(e)
+                ic(temp)
         self.segmented_annotated = segmented_annotated
         self.write_image_to_file("45_detected_crop_rows_on_segmented_image.png", segmented_annotated)
 
