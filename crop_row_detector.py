@@ -236,22 +236,18 @@ class crop_row_detector:
                 end_point = (temp[1][0], temp[1][1])
                 distance = np.linalg.norm(np.asarray(start_point) - np.asarray(end_point))
                 n_samples = np.ceil(distance / distance_between_samples)
-                # TODO: Pay attention to the direction between start_point and end_point
-                # angle should go in the same direction for this approach to work.
-                calculated_angle = -math.atan2(start_point[0] - end_point[0], start_point[1] - end_point[1])
-                if counter == 2:
-                    ic(angle)
-                    ic(calculated_angle)
-                if np.abs(angle - calculated_angle) > 0.1:
-                    #ic(angle)
-                    #ic(calculated_angle)
-                    #print("Angle might be wrong when sampling vegetatation coverage")
-                    #ic(np.abs(angle - calculated_angle))
-                    #angle += np.pi
-                    pass
 
-                x_sample_coords = start_point[0] - range(0, int(n_samples)) * np.sin(angle) * (1)
-                y_sample_coords = start_point[1] - range(0, int(n_samples)) * np.cos(angle) * (-1)
+                x_close_to_end = start_point[0] + distance * np.sin(angle)
+                y_close_to_end = start_point[1] + distance * np.cos(angle) * (-1)
+                
+                # In some cases the given angle points directly away from the end point, instead of
+                # point towards the end point from the starting point. In that case, reverse the direction.
+                if np.abs(x_close_to_end - end_point[0]) + np.abs(y_close_to_end - end_point[1]) > 5:
+                    angle = angle + np.pi
+
+                x_sample_coords = start_point[0] + range(0, int(n_samples)) * np.sin(angle) * (1)
+                y_sample_coords = start_point[1] + range(0, int(n_samples)) * np.cos(angle) * (-1)
+
                 vegetation_samples = cv2.remap(vegetation_map, 
                                             x_sample_coords.astype(np.float32), 
                                             y_sample_coords.astype(np.float32), 
