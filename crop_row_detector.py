@@ -361,13 +361,13 @@ class crop_row_detector:
         width = tile.size[1]
         height = tile.size[0]
         self.tile_number = tile_number
-        #print(segmented_img.shape)
         # run row detection on tile
         if segmented_img.shape[0] == 1:
             self.gray = segmented_img.reshape(segmented_img.shape[1], segmented_img.shape[2])
             if self.filename_orthomosaic is not None:
                 self.img = read_tile(self.filename_orthomosaic, self.tiles_plot[tile_number])
-            else: self.img = segmented_img.reshape(segmented_img.shape[1], segmented_img.shape[2])
+            else: 
+                self.img = segmented_img.reshape(segmented_img.shape[1], segmented_img.shape[2])
             self.gray_reduce()
         else:
             self.img = segmented_img
