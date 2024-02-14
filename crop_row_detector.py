@@ -213,7 +213,7 @@ class crop_row_detector:
         # 1. Blur image with a uniform kernel
         # Approx distance between crop rows is 16 pixels.
         # I would prefer to have a kernel size that is not divisible by two.
-        temp = self.gray.astype(np.uint8) * 255.
+        temp = self.gray.astype(np.uint8)
         vegetation_map = cv2.blur(temp, (10, 10))
         self.write_image_to_file("60_vegetation_map.png", vegetation_map)
 
