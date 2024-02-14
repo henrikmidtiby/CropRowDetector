@@ -1,5 +1,8 @@
 env/
-2023-*
-2024-*
+build/
+output/
+output_*/
+2023*
+2024*
 rødsvingel*
 Show*
