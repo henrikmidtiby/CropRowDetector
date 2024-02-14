@@ -5,10 +5,11 @@
 
 import numpy as np
 cimport numpy as cnp
+from cython.parallel cimport prange
 
 #from cpython.mem cimport PyMem_Malloc, PyMem_Free
 #from libc.stdlib cimport labs
-from libc.math cimport fabs, sqrt, ceil, atan2, M_PI
+from libc.math cimport fabs, sqrt, ceil, atan2, M_PI, round
 
 # DTYPE_t = cnp.float64_t
 
@@ -46,10 +47,10 @@ cpdef hough_line(cnp.ndarray img, cnp.ndarray[cnp.float64_t, ndim=1] theta):
     # compute the bins and allocate the accumulator array
     cdef cnp.ndarray[cnp.uint64_t, ndim=2] accum
     cdef cnp.ndarray[cnp.float64_t, ndim=1] bins
-    cdef Py_ssize_t max_distance, offset
+    cdef int max_distance, offset
 
-    offset = <Py_ssize_t>ceil(sqrt(img.shape[0] * img.shape[0] +
-                                   img.shape[1] * img.shape[1]))
+    offset = int(ceil(sqrt(img.shape[0] * img.shape[0] +
+                                   img.shape[1] * img.shape[1])))
     max_distance = 2 * offset + 1
     accum = np.zeros((max_distance, theta.shape[0]), dtype=np.uint64)
     bins = np.linspace(-offset, offset, max_distance)
@@ -59,16 +60,18 @@ cpdef hough_line(cnp.ndarray img, cnp.ndarray[cnp.float64_t, ndim=1] theta):
     y_idxs, x_idxs = np.nonzero(img)
 
     # finally, run the transform
-    cdef Py_ssize_t nidxs, nthetas, i, j, x, y, accum_idx
+    cdef int nidxs, nthetas, i, j, x, y, accum_idx, value
 
     nidxs = y_idxs.shape[0]  # x and y are the same shape
     nthetas = theta.shape[0]
+
     for kk in range(1):
-        for i in range(nidxs):
-            x = x_idxs[i]
-            y = y_idxs[i]
-            for j in range(nthetas):
-                accum_idx = round((ctheta[j] * x + stheta[j] * y)) + offset
+        for j in prange(nthetas, nogil=True):
+            for i in range(nidxs):
+                x = x_idxs[i]
+                y = y_idxs[i]
+                value = <int>round((ctheta[j] * x + stheta[j] * y))
+                accum_idx = value + offset
                 accum[accum_idx, j] += 1
 
     return accum, theta, bins
