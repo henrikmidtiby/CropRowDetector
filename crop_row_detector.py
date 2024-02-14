@@ -63,6 +63,10 @@ class crop_row_detector:
         self.peaks = None
         self.gray = None
         self.threshold_level = 10
+        # In gimp I have measured the crop row distance to be around 20 px.
+        # however I get the best results when this value is set to 30.
+        self.expected_crop_row_distance = 20 # 30
+
 
         # opening and processing the image
         self.filename_orthomosaic = None
@@ -102,6 +106,23 @@ class crop_row_detector:
         tested_angles = np.linspace(-np.pi / 2, np.pi / 2, number_of_angles)
         self.h, self.theta, self.d = hough_transform_grayscale.hough_line(self.gray, theta=tested_angles)
 
+        filterSize = (self.expected_crop_row_distance, self.expected_crop_row_distance) 
+        kernel = cv2.getStructuringElement(cv2.MORPH_RECT,  
+                                        filterSize) 
+        
+        h_temp = self.h.copy()
+        
+        for i in range(0, self.h.shape[1]):
+            h_split = self.h[:,i].copy()
+            # Applying the Top-Hat operation 
+            tophat_img = cv2.morphologyEx(h_split,  
+                                    cv2.MORPH_TOPHAT, 
+                                    kernel) 
+            for j in range(0, self.h.shape[0]):
+                h_temp[j,i] = tophat_img[j]
+        
+        self.h = h_temp
+        
         temp = cv2.minMaxLoc(self.h)[1]
         if temp > 0:
             self.h = self.h/temp
@@ -111,8 +132,8 @@ class crop_row_detector:
         self.write_image_to_file("35_hough_image.png", 255 * self.h)
 
         # Blur image using a 5 x 1 average filter
-        kernel = np.ones((5,1), np.float32) / 5
-        self.h = cv2.filter2D(self.h, -1, kernel)
+        #kernel = np.ones((5,1), np.float32) / 5
+        #self.h = cv2.filter2D(self.h, -1, kernel)
         self.write_image_to_file("35_hough_image_blurred.png", 255 * self.h)
 
 
@@ -124,7 +145,7 @@ class crop_row_detector:
         # Normalize the direction response
         Direc_energi = np.log(direction_response) - baseline_fitter.mor(np.log(direction_response), half_window=30)[0]
         max = np.max(Direc_energi)
-        self.direction_with_most_energy_idx = np.argmax(Direc_energi)
+        self.direction_with_most_energy_idx = np.argmax(direction_response)#Direc_energi)
         self.direction = self.theta[self.direction_with_most_energy_idx]
         
         # Plot the direction response and normalized direction response
@@ -155,10 +176,8 @@ class crop_row_detector:
     def determine_and_plot_offsets_of_crop_rows_with_direction(self):
         signal = self.h[:, self.direction_with_most_energy_idx]
 
-        # In gimp I have measured the crop row distance to be around 20 px.
-        # however I get the best results when this value is set to 30.
-        expected_crop_row_distance = 20 # 30
-        peaks, _ = find_peaks(signal, distance=expected_crop_row_distance / 2)
+        
+        peaks, _ = find_peaks(signal, distance=self.expected_crop_row_distance / 2)
         self.peaks = peaks
         plt.figure(figsize=(16, 9))
         plt.plot(signal)
