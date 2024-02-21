@@ -100,18 +100,11 @@ class crop_row_detector:
             self.ensure_parent_directory_exist(path)
             plt.savefig(path, dpi=300)
     
-    def apply_hough_lines(self):
-        # Apply the hough transform
-        number_of_angles = 8*360
-        tested_angles = np.linspace(-np.pi / 2, np.pi / 2, number_of_angles)
-        self.h, self.theta, self.d = hough_transform_grayscale.hough_line(self.gray, theta=tested_angles)
-
-        filterSize = (self.expected_crop_row_distance, self.expected_crop_row_distance) 
+    def apply_top_hat(self):
+        filterSize = (int(self.expected_crop_row_distance/2), int(self.expected_crop_row_distance/2)) 
         kernel = cv2.getStructuringElement(cv2.MORPH_RECT,  
                                         filterSize) 
-        
         h_temp = self.h.copy()
-        
         for i in range(0, self.h.shape[1]):
             h_split = self.h[:,i].copy()
             # Applying the Top-Hat operation 
@@ -120,8 +113,23 @@ class crop_row_detector:
                                     kernel) 
             for j in range(0, self.h.shape[0]):
                 h_temp[j,i] = tophat_img[j]
-        
         self.h = h_temp
+
+    def apply_hough_lines(self):
+        # Apply the hough transform
+        number_of_angles = 8*360
+        tested_angles = np.linspace(-np.pi / 2, np.pi / 2, number_of_angles)
+        self.h, self.theta, self.d = hough_transform_grayscale.hough_line(self.gray, theta=tested_angles)
+
+        temp = cv2.minMaxLoc(self.h)[1]
+        self.write_image_to_file("33_hough_image.png", 255 * self.h/temp)
+
+        # Blur image using a 5 x 1 average filter
+        kernel = np.ones((5,1), np.float32) / 5
+        self.h = cv2.filter2D(self.h, -1, kernel)
+        self.write_image_to_file("34_hough_image_blurred.png", 255 * self.h/temp)
+
+        self.apply_top_hat()
         
         temp = cv2.minMaxLoc(self.h)[1]
         if temp > 0:
@@ -129,13 +137,7 @@ class crop_row_detector:
         else:
             self.h = self.h + 0.01
 
-        self.write_image_to_file("35_hough_image.png", 255 * self.h)
-
-        # Blur image using a 5 x 1 average filter
-        #kernel = np.ones((5,1), np.float32) / 5
-        #self.h = cv2.filter2D(self.h, -1, kernel)
-        self.write_image_to_file("35_hough_image_blurred.png", 255 * self.h)
-
+        self.write_image_to_file("35_hough_image_tophat.png", 255 * self.h)
 
     def determine_dominant_row(self):
         # Determine the dominant row direction
