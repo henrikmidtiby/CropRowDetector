@@ -45,14 +45,14 @@ cpdef hough_line(cnp.ndarray img, cnp.ndarray[cnp.float64_t, ndim=1] theta):
     stheta = np.sin(theta)
 
     # compute the bins and allocate the accumulator array
-    cdef cnp.ndarray[cnp.uint64_t, ndim=2] accum
+    cdef cnp.ndarray[cnp.float64_t, ndim=2] accum
     cdef cnp.ndarray[cnp.float64_t, ndim=1] bins
     cdef int max_distance, offset
 
     offset = int(ceil(sqrt(img.shape[0] * img.shape[0] +
                                    img.shape[1] * img.shape[1])))
     max_distance = 2 * offset + 1
-    accum = np.zeros((max_distance, theta.shape[0]), dtype=np.uint64)
+    accum = np.zeros((max_distance, theta.shape[0]), dtype=np.float64)
     bins = np.linspace(-offset, offset, max_distance)
 
     # compute the nonzero indexes
@@ -60,18 +60,75 @@ cpdef hough_line(cnp.ndarray img, cnp.ndarray[cnp.float64_t, ndim=1] theta):
     y_idxs, x_idxs = np.nonzero(img)
 
     # finally, run the transform
-    cdef int nidxs, nthetas, i, j, x, y, accum_idx, value
+    cdef int nidxs, nthetas, x, y, value, accum_idx, i, j
 
     nidxs = y_idxs.shape[0]  # x and y are the same shape
     nthetas = theta.shape[0]
 
-    for kk in range(1):
-        for j in prange(nthetas, nogil=True):
-            for i in range(nidxs):
-                x = x_idxs[i]
-                y = y_idxs[i]
-                value = <int>round((ctheta[j] * x + stheta[j] * y))
-                accum_idx = value + offset
-                accum[accum_idx, j] += 1
+    #for kk in range(1):
+    for j in prange(nthetas, nogil=True):
+        for i in range(nidxs):
+            x = x_idxs[i]
+            y = y_idxs[i]
+            value = <int>round((ctheta[j] * x + stheta[j] * y))
+            accum_idx = value + offset
+            accum[accum_idx, j] += 1
 
     return accum, theta, bins
+
+
+"""
+cpdef hough_line(cnp.ndarray img, cnp.ndarray[cnp.float64_t, ndim=1] theta):
+    # Compute the array of angles and their sine and cosine
+    # Can only be float64 because that is what np.sin and np.cos return
+    cdef cnp.ndarray[cnp.float64_t, ndim=1] ctheta
+    cdef cnp.ndarray[cnp.float64_t, ndim=1] stheta  
+    ctheta = np.cos(theta)
+    stheta = np.sin(theta)
+
+    cdef cnp.ndarray[cnp.uint8_t, ndim=2] img_temp
+    img_temp = img.astype(np.uint8)
+    
+    # compute the bins and allocate the accumulator array
+    cdef cnp.ndarray[cnp.uint32_t, ndim=2] accum, accum_running_avg # 32 bit int
+    cdef cnp.ndarray[cnp.float64_t, ndim=1] bins
+    cdef Py_ssize_t max_distance, offset
+
+    offset = <Py_ssize_t>ceil(sqrt(img.shape[0] * img.shape[0] +
+                                   img.shape[1] * img.shape[1]))
+    max_distance = 2 * offset + 1
+    accum = np.zeros((max_distance, theta.shape[0]), dtype=np.uint32)
+    bins = np.linspace(-offset, offset, max_distance)
+
+    # compute the nonzero indexes
+    cdef cnp.ndarray[cnp.npy_intp, ndim=1] x_idxs, y_idxs
+    y_idxs, x_idxs = np.nonzero(img)
+
+    # finally, run the transform
+    cdef Py_ssize_t nidxs, nthetas, i, j, x, y, accum_idx
+
+    nidxs = y_idxs.shape[0]  # x and y are the same shape
+    nthetas = theta.shape[0]
+    with nogil:
+        for i in range(nidxs):
+            x = x_idxs[i]
+            y = y_idxs[i]
+            for j in range(nthetas):
+                accum_idx = <Py_ssize_t>round(ctheta[j] * x + stheta[j] * y) + offset
+                accum[accum_idx, j] += img_temp[y, x]
+
+    accum_running_avg = accum.copy()
+    # The accumulator array does not compute the average for the top and bottom 2 rows
+    for i in range(2, accum.shape[0]-2):
+        for j in range(0, accum.shape[1]):
+            try:
+                accum_running_avg[i,j] = (accum[i-2,j]+accum[i-1,j]+accum[i,j]+accum[i+1,j]+accum[i+2,j])/5
+            except Exception as e:
+                print(e)
+    
+    # Slows down by factor 4
+    # accum_running_avg = running_avg(accum)
+
+    cdef cnp.ndarray[cnp.float64_t, ndim=2] accum_float = accum_running_avg.astype(np.float64)
+
+    return accum_float, theta, bins"""

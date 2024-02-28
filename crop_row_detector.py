@@ -15,6 +15,7 @@ from tqdm import tqdm
 import os
 
 import hough_transform_grayscale
+from skimage.transform import hough_line
 
 import time
 
@@ -78,6 +79,7 @@ class crop_row_detector:
         self.tile_size = 3000
         self.tiles_plot = None
         self.run_specific_tile = None
+        self.run_specific_tileset = None
 
 
     def ensure_parent_directory_exist(self, path):
@@ -99,28 +101,30 @@ class crop_row_detector:
             path = self.get_debug_output_filepath(output_path)
             self.ensure_parent_directory_exist(path)
             plt.savefig(path, dpi=300)
-    
+
     def apply_top_hat(self):
-        filterSize = (int(self.expected_crop_row_distance/2), int(self.expected_crop_row_distance/2)) 
+        # column filter with the distance between 2 rows
+        filterSize = (1, int(self.expected_crop_row_distance)) 
         kernel = cv2.getStructuringElement(cv2.MORPH_RECT,  
                                         filterSize) 
-        h_temp = self.h.copy()
-        for i in range(0, self.h.shape[1]):
-            h_split = self.h[:,i].copy()
-            # Applying the Top-Hat operation 
-            tophat_img = cv2.morphologyEx(h_split,  
+        # Applying the Top-Hat operation 
+        self.h = cv2.morphologyEx(self.h,  
                                     cv2.MORPH_TOPHAT, 
-                                    kernel) 
-            for j in range(0, self.h.shape[0]):
-                h_temp[j,i] = tophat_img[j]
-        self.h = h_temp
+                                    kernel)
 
     def apply_hough_lines(self):
         # Apply the hough transform
         number_of_angles = 8*360
         tested_angles = np.linspace(-np.pi / 2, np.pi / 2, number_of_angles)
+        t1 = time.time()
+        
         self.h, self.theta, self.d = hough_transform_grayscale.hough_line(self.gray, theta=tested_angles)
-
+        t2 = time.time()
+        self.h, self.theta, self.d = hough_line(self.gray, theta=tested_angles)
+        
+        print("Time to run hough transform: ", t2 - t1)
+        print("Time to run hough transform: ", time.time() - t2)
+        self.h = self.h.astype(np.float32)
         temp = cv2.minMaxLoc(self.h)[1]
         self.write_image_to_file("33_hough_image.png", 255 * self.h/temp)
 
@@ -147,6 +151,10 @@ class crop_row_detector:
         # Normalize the direction response
         Direc_energi = np.log(direction_response) - baseline_fitter.mor(np.log(direction_response), half_window=30)[0]
         max = np.max(Direc_energi)
+
+
+        # the direction with the most energi is dicided from sum of the squrare of the hough transform
+        # it is possible to subtrack the baseline, but this does not always provide a better result.
         self.direction_with_most_energy_idx = np.argmax(direction_response)#Direc_energi)
         self.direction = self.theta[self.direction_with_most_energy_idx]
         
@@ -381,8 +389,16 @@ class crop_row_detector:
                                                      self.tile_size)
 
         for tile_number, tile in enumerate(tqdm(processing_tiles)):
-            if self.run_specific_tile is not None:
-                if tile_number == self.run_specific_tile:
+            if self.run_specific_tileset is not None:
+                if tile_number >= self.run_specific_tileset[0] and tile_number <= self.run_specific_tileset[1]:
+                    img = read_tile(filename_segmented_orthomosaic, tile)
+                    self.process_tile(img, tile_number, tile)
+                elif self.run_specific_tile is not None:
+                    if tile_number in self.run_specific_tile:
+                        img = read_tile(filename_segmented_orthomosaic, tile)
+                        self.process_tile(img, tile_number, tile)
+            elif self.run_specific_tile is not None:
+                if tile_number in self.run_specific_tile:
                     img = read_tile(filename_segmented_orthomosaic, tile)
                     self.process_tile(img, tile_number, tile)
             else:
@@ -538,16 +554,28 @@ parser.add_argument('--tile_boundry',
                     help='if set to true will plot a boundry on each tile ' 
                     'and the tile number on the til, is default False.')
 parser.add_argument('--run_specific_tile',
-                    default=None,
+                    nargs='+',
                     type=int,
-                    help='If set, only run the specific tile number.')
+                    help='If set, only run the specific tile numbers. '
+                    '(--run_specific_tile 16 65) will run tile 16 and 65.')
+parser.add_argument('--run_specific_tileset',
+                    nargs='+',
+                    type=int,
+                    help='takes to inputs like (--from_specific_tile 16 65). '
+                    'this will run every tile from 16 to 65.')
+parser.add_argument('--expected_crop_row_distance',
+                    default=20,
+                    type=int,
+                    help='The expected distance between crop rows in pixels, default is 20.')
 args = parser.parse_args()
 
 crd = crop_row_detector()
 crd.generate_debug_images = args.generate_debug_images
 crd.tile_boundry = args.tile_boundry
 crd.run_specific_tile = args.run_specific_tile
+crd.run_specific_tileset = args.run_specific_tileset
 crd.tile_size = args.tile_size
+crd.expected_crop_row_distance = args.expected_crop_row_distance
 crd.output_tile_location = args.output_tile_location
 crd.filename_orthomosaic = args.orthomosaic
 crd.threshold_level = 12
@@ -555,7 +583,7 @@ crd.main(args.segmented_orthomosaic)
 
 
 
-# python3 crop_row_detector.py rødsvingel/rødsvingel.tif --orthomosaic rødsvingel/input_data/2023-04-03_Rødsvingel_1._års_Wagner_JSJ_2_ORTHO.tif --output_tile_location rødsvingel/tiles_crd --tile_size 500 --tile_boundry True --generate_debug_images True
+# python3 crop_row_detector.py rødsvingel/rødsvingel.tif --orthomosaic rødsvingel/input_data/2023-04-03_Rødsvingel_1._års_Wagner_JSJ_2_ORTHO.tif --output_tile_location rødsvingel/tiles_crd --tile_size 500 --tile_boundry True --generate_debug_images True --run_specific_tile 16
 # gdal_merge.py -o rødsvingel/rødsvingel_crd.tif -a_nodata 255 rødsvingel/tiles_crd/mahal*.tiff
 
 
