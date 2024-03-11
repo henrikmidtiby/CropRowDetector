@@ -5,7 +5,8 @@
 
 import numpy as np
 cimport numpy as cnp
-from cython.parallel cimport prange
+from cython.parallel cimport parallel, prange
+import cython
 
 #from cpython.mem cimport PyMem_Malloc, PyMem_Free
 #from libc.stdlib cimport labs
