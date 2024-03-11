@@ -66,6 +66,7 @@ cpdef hough_line(cnp.ndarray img, cnp.ndarray[cnp.float64_t, ndim=1] theta):
     nidxs = y_idxs.shape[0]  # x and y are the same shape
     nthetas = theta.shape[0]
 
+
     #for kk in range(1):
     for j in prange(nthetas, nogil=True):
         for i in range(nidxs):

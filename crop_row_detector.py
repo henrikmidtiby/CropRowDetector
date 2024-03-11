@@ -311,11 +311,13 @@ class crop_row_detector:
                                             y_sample_coords.astype(np.float32), 
                                             cv2.INTER_LINEAR)
 
-                DF = pd.DataFrame({'idx': peak_idx, 
-                                'x': x_sample_coords, 
-                                'y': y_sample_coords, 
+                DF = pd.DataFrame({'tile': self.tile_number,
+                                'row': counter, 
+                                'x': x_sample_coords + self.tile_size*tile.tile_position[1], 
+                                'y': y_sample_coords + self.tile_size*tile.tile_position[0], 
                                 'vegetation': vegetation_samples.transpose()[0]})
                 df_missing_vegetation_list.append(DF)
+                print("Df: ", DF, "\n\n")
 
                 missing_plants = DF[DF['vegetation'] < 60]
                 for index, location in missing_plants.iterrows():
@@ -326,6 +328,7 @@ class crop_row_detector:
                             -1)
             except Exception as e:
                 print(e)
+                
                 
         #filename = self.date_time + "/" + "64_vegetation_samples.csv"
         #DF_combined = pd.concat(df_missing_vegetation_list)
@@ -373,11 +376,9 @@ class crop_row_detector:
 
     def gray_reduce(self):
         gray_temp = self.gray.copy()
-        #print(gray_temp.shape)
         for i in range(0, self.gray.shape[0]):
             for j in range(0, self.gray.shape[1]):
                 if self.gray[i,j] < self.threshold_level:
-                    # gray_temp[i,j] = 255-gray_temp[i,j]
                     gray_temp[i,j] = 255
                 else:
                     gray_temp[i,j] = 0
@@ -417,6 +418,7 @@ class crop_row_detector:
                                                      self.tile_size)
 
         for tile_number, tile in enumerate(tqdm(processing_tiles)):
+            tile.tile_number = tile_number
             if self.run_specific_tileset is not None:
                 if tile_number >= self.run_specific_tileset[0] and tile_number <= self.run_specific_tileset[1]:
                     img = read_tile(filename_segmented_orthomosaic, tile)
@@ -521,7 +523,7 @@ class crop_row_detector:
         self.draw_detected_crop_rows_on_input_image()
         if self.generate_debug_images:
             self.draw_detected_crop_rows_on_segmented_image()
-        self.measure_vegetation_coverage_in_crop_row()
+        self.measure_vegetation_coverage_in_crop_row(tile)
         if self.tile_boundry:
             self.add_boundary_and_number_to_tile()
 
@@ -533,6 +535,11 @@ class crop_row_detector:
             tile.ulc_global[1] + self.resolution[0] / 2,
             tile.ulc_global[0] - self.resolution[0] / 2) * \
             Affine.scale(self.resolution[0], -self.resolution[0])
+
+        print("tile_position: ", tile.tile_position)
+        print("tile.ulc: ", tile.ulc)
+        print("tile.ulc_global: ", tile.ulc_global)
+        print("tile_number: ", tile.tile_number)
 
         # optional save of results - just lob detection and thresholding result
         self.save_results(self.img, tile_number,
