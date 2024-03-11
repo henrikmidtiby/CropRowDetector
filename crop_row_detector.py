@@ -31,6 +31,9 @@ class Tile:
         self.lrc = (start_point[0] + height, start_point[1] + width)
         self.processing_range = [[0, 0], [0, 0]]
 
+        self.tile_number = None
+        self.vegetation = []
+
 
 def rasterio_opencv2(image):
     if image.shape[0] >= 3:  # might include alpha channel
@@ -81,6 +84,11 @@ class crop_row_detector:
         self.run_specific_tile = None
         self.run_specific_tileset = None
 
+        # Save the endpoints of the detected crop rows
+        self.vegetation_lines = []
+        # List containing the lacking rows
+        self.filler_rows = []
+
 
     def ensure_parent_directory_exist(self, path):
         temp_path = Path(path).parent
@@ -122,8 +130,8 @@ class crop_row_detector:
         t2 = time.time()
         self.h, self.theta, self.d = hough_line(self.gray, theta=tested_angles)
         
-        print("Time to run hough transform: ", t2 - t1)
-        print("Time to run hough transform: ", time.time() - t2)
+        #print("Time to run hough transform: ", t2 - t1)
+        #print("Time to run hough transform: ", time.time() - t2)
         self.h = self.h.astype(np.float32)
         temp = cv2.minMaxLoc(self.h)[1]
         self.write_image_to_file("33_hough_image.png", 255 * self.h/temp)
@@ -197,20 +205,27 @@ class crop_row_detector:
         plt.close()
 
     def draw_detected_crop_rows_on_input_image(self):
+        self.vegetation_lines = []
         # Draw detected crop rows on the input image
         origin = np.array((0, self.img.shape[1])) 
+        prev_peak_dist = 0
         for peak_idx in self.peaks:
             dist = self.d[peak_idx]
             angle = self.direction
+
+            self.fill_in_gaps_in_detected_crop_rows(dist, prev_peak_dist, angle)
+
             temp = self.get_line_ends_within_image(dist, angle, self.img)
-            # print("temp: ", temp)
             try:
                 cv2.line(self.img, (temp[0][0], temp[0][1]), 
                          (temp[1][0], temp[1][1]), (0, 0, 255), 1)
             except Exception as e:
                 print(e)
                 ic(temp)
-
+            prev_peak_dist = dist
+            self.vegetation_lines.append(temp)
+        #print("filler_rows: ", self.filler_rows)
+        print("length of vegetation_lines: ", len(self.vegetation_lines))
         if self.tile_boundry:
             self.add_boundary_and_number_to_tile()
         self.write_image_to_file("40_detected_crop_rows.png", self.img)
@@ -222,6 +237,19 @@ class crop_row_detector:
         cv2.line(self.img, (self.img.shape[1]-1, 0), (self.img.shape[1]-1, self.img.shape[0]-1), (0, 0, 255), 1)
         cv2.putText(self.img, f'{self.tile_number}', (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 255), 2, cv2.LINE_AA)
 
+    def fill_in_gaps_in_detected_crop_rows(self, dist, prev_peak_dist, angle):
+        # If distance between two rows is larger than twice the expected row distance,
+        # Then fill in the gap with lines.
+        if prev_peak_dist != 0 and dist - prev_peak_dist > 2 * self.expected_crop_row_distance:
+            while prev_peak_dist + self.expected_crop_row_distance < dist-self.expected_crop_row_distance:
+                prev_peak_dist += self.expected_crop_row_distance
+                temp = self.get_line_ends_within_image(prev_peak_dist, angle, self.img)
+                cv2.line(self.img, (temp[0][0], temp[0][1]), 
+                            (temp[1][0], temp[1][1]), (0, 0, 255), 1)
+                self.filler_rows.append([temp, len(self.vegetation_lines), self.tile_number])
+                self.vegetation_lines.append(temp)
+                
+
     def get_line_ends_within_image(self, dist, angle, img):
         x_val_range = np.array((0, img.shape[1]))
         y_val_range = np.array((0, img.shape[0]))
@@ -229,17 +257,20 @@ class crop_row_detector:
         y0, y1 = (dist - x_val_range * np.cos(angle)) / np.sin(angle)
         x0, x1 = (dist - y_val_range * np.sin(angle)) / np.cos(angle)
         temp = []
-        if int(y0) > 0 and int(y0) < img.shape[0]:
+        #print("y0: ", y0, "y1: ", y1, "x0: ", x0, "x1: ", x1)
+        #print("y0: ", int(y0), "y1: ", int(y1), "x0: ", int(x0), "x1: ", int(x1))
+        if int(y0) >= -1 and int(y0) <= img.shape[0]:
             temp.append([0, int(y0)])
-        if int(y1) > 0 and int(y1) < img.shape[0]:
+        if int(y1) >= -1 and int(y1) <= img.shape[0]:
             temp.append([img.shape[0], int(y1)])
-        if int(x0) > 0 and int(x0) < img.shape[1]:
+        if int(x0) >= -1 and int(x0) <= img.shape[1]:
             temp.append([int(x0), 0])
-        if int(x1) > 0 and int(x1) < img.shape[1]:
+        if int(x1) >= -1 and int(x1) <= img.shape[1]:
             temp.append([int(x1), img.shape[0]])
+        #print("temp: ", temp)
         return temp
 
-    def measure_vegetation_coverage_in_crop_row(self):
+    def measure_vegetation_coverage_in_crop_row(self, tile):
         # 1. Blur image with a uniform kernel
         # Approx distance between crop rows is 16 pixels.
         # I would prefer to have a kernel size that is not divisible by two.
@@ -254,16 +285,13 @@ class crop_row_detector:
         missing_plants_image = self.img
         df_missing_vegetation_list = []
 
-        for counter, peak_idx in enumerate(self.peaks):
+        for counter, crop_row in enumerate(self.vegetation_lines):
             try:
-                dist = self.d[peak_idx]
                 angle = self.direction
-
-                # Determine sample locations
-                temp = self.get_line_ends_within_image(dist, angle, self.img)
-                start_point = (temp[0][0], temp[0][1])
+                # Determine sample locations along the crop row
+                start_point = (crop_row[0][0], crop_row[0][1])
                 distance_between_samples = 1
-                end_point = (temp[1][0], temp[1][1])
+                end_point = (crop_row[1][0], crop_row[1][1])
                 distance = np.linalg.norm(np.asarray(start_point) - np.asarray(end_point))
                 n_samples = np.ceil(distance / distance_between_samples)
 
