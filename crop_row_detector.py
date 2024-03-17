@@ -352,15 +352,18 @@ class crop_row_detector:
             angle = self.direction
             temp = self.get_line_ends_within_image(dist, angle, self.img)
             try:
-                cv2.line(segmented_annotated, 
-                            (temp[0][0], temp[0][1]), 
-                            (temp[1][0], temp[1][1]), 
-                            (0, 0, 255), 1)
+                self.draw_crop_row(segmented_annotated, temp)
             except Exception as e:
                 print(e)
                 ic(temp)
         self.segmented_annotated = segmented_annotated
         self.write_image_to_file("45_detected_crop_rows_on_segmented_image.png", segmented_annotated)
+
+    def draw_crop_row(self, segmented_annotated, temp):
+        cv2.line(segmented_annotated, 
+                            (temp[0][0], temp[0][1]), 
+                            (temp[1][0], temp[1][1]), 
+                            (0, 0, 255), 1)
 
     def convert_to_grayscale(self):
         HSV = cv2.cvtColor(self.img, cv2.COLOR_BGR2HSV)
