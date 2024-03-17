@@ -124,10 +124,11 @@ class crop_row_detector:
         # Apply the hough transform
         number_of_angles = 8*360
         tested_angles = np.linspace(-np.pi / 2, np.pi / 2, number_of_angles)
-        t1 = time.time()
         
-        self.h, self.theta, self.d = hough_transform_grayscale.hough_line(self.gray, theta=tested_angles)
-        t2 = time.time()
+        #t1 = time.time()
+        #scipy's implementation er anvendt, da denne for nu er hurtigere
+        #self.h, self.theta, self.d = hough_transform_grayscale.hough_line(self.gray, theta=tested_angles)
+        #t2 = time.time()
         self.h, self.theta, self.d = hough_line(self.gray, theta=tested_angles)
         
         #print("Time to run hough transform: ", t2 - t1)
