@@ -318,7 +318,7 @@ class crop_row_detector:
                                 'y': y_sample_coords + self.tile_size*tile.tile_position[0], 
                                 'vegetation': vegetation_samples.transpose()[0]})
                 df_missing_vegetation_list.append(DF)
-                print("Df: ", DF, "\n\n")
+                
 
                 missing_plants = DF[DF['vegetation'] < 60]
                 for index, location in missing_plants.iterrows():
@@ -329,11 +329,15 @@ class crop_row_detector:
                             -1)
             except Exception as e:
                 print(e)
+        
                 
                 
         #filename = self.date_time + "/" + "64_vegetation_samples.csv"
-        #DF_combined = pd.concat(df_missing_vegetation_list)
-        #F_combined.to_csv(filename)
+        filename = self.output_tile_location + "/debug_images/" + f'{self.tile_number}' + "/" + "68_vegetation_samples.csv"
+        DF_combined = pd.concat(df_missing_vegetation_list)
+        print("Df: ", DF_combined, "\n\n")
+        print("Df: ", DF_combined.shape, "\n\n")
+        DF_combined.to_csv(filename)
         self.write_image_to_file("67_missing_plants_in_crop_line.png", missing_plants_image)
     
         # 3. Export to a csv file, include the following information
