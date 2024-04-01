@@ -64,6 +64,14 @@ class Tile:
         # however I get the best results when this value is set to 30.
         self.expected_crop_row_distance = 20 # 30
 
+    def load_tile_info(self, tile_number, output_tile_location, generate_debug_images, tile_boundry, threshold_level, expected_crop_row_distance):
+        self.tile_number = tile_number
+        self.output_tile_location = output_tile_location
+        self.generate_debug_images = generate_debug_images
+        self.tile_boundry = tile_boundry
+        self.threshold_level = threshold_level
+        self.expected_crop_row_distance = expected_crop_row_distance
+
 
 def rasterio_opencv2(image):
     if image.shape[0] >= 3:  # might include alpha channel
@@ -503,12 +511,12 @@ class tile_separator:
             
 
             # Initilize the tile with the necessary information
-            tile.tile_number = tile_number
-            tile.threshold_level = self.threshold_level
-            tile.generate_debug_images = self.generate_debug_images
-            tile.tile_boundry = self.tile_boundry
-            tile.output_tile_location = self.output_tile_location
-            tile.expected_crop_row_distance = self.expected_crop_row_distance
+            tile.load_tile_info(tile_number, 
+                                self.output_tile_location, 
+                                self.generate_debug_images, 
+                                self.tile_boundry, 
+                                self.threshold_level, 
+                                self.expected_crop_row_distance)
             
             # Run the initialized crop row detector on the tile
             original_orthomosaic = read_tile(self.filename_orthomosaic, tiles_plot[tile.tile_number])
