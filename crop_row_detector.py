@@ -124,7 +124,6 @@ def rasterio_opencv2(image):
     else:
         return image
 
-
 def read_tile(orthomosaic, tile):
     with rasterio.open(orthomosaic) as src:
         window = Window.from_slices((tile.ulc[0], tile.lrc[0]),
@@ -531,6 +530,7 @@ class tile_separator:
             self.left = src.bounds[0]
             self.top = src.bounds[3]
 
+
         processing_tiles = self.get_processing_tiles(filename_segmented_orthomosaic,
                                                      self.tile_size)
         if self.filename_orthomosaic is not None:
@@ -559,6 +559,10 @@ class tile_separator:
                                 self.tile_boundry, 
                                 self.threshold_level, 
                                 self.expected_crop_row_distance)
+            tile.load_tile_to_world_coordinates(self.resolution, 
+                                                self.crs, 
+                                                self.left, 
+                                                self.top)
             
             # Run the initialized crop row detector on the tile
             original_orthomosaic = read_tile(self.filename_orthomosaic, tiles_plot[tile.tile_number])
