@@ -24,6 +24,7 @@ import time
 
 class Tile:
     def __init__(self, start_point, position, height, width):
+        # Data for the tile
         self.size = (height, width)
         self.tile_position = position
         self.ulc = start_point
@@ -31,8 +32,37 @@ class Tile:
         self.lrc = (start_point[0] + height, start_point[1] + width)
         self.processing_range = [[0, 0], [0, 0]]
 
+        # Data for the detected crop rows
+        # Tile
+        
         self.tile_number = None
+        self.img = None
+        self.gray = None
+
+        # Hough transform and directions
+        self.h = None
+        self.theta = None
+        self.d = None
+        self.direction_with_most_energy_idx = None
+        self.direction = None
+        self.peaks = None
+        
+
         self.vegetation = []
+        # Save the endpoints of the detected crop rows
+        self.vegetation_lines = []
+        # List containing the lacking rows
+        self.filler_rows = []
+
+        self.threshold_level = 10
+        self.generate_debug_images = None
+        self.tile_boundry = None
+
+        self.output_tile_location = None
+
+        # In gimp I have measured the crop row distance to be around 20 px.
+        # however I get the best results when this value is set to 30.
+        self.expected_crop_row_distance = 20 # 30
 
 
 def rasterio_opencv2(image):
