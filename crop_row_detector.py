@@ -442,6 +442,24 @@ class crop_row_detector:
         if tile.tile_boundry:
             self.add_boundary_and_number_to_tile(tile)
 
+class tile_separator:
+    def __init__(self):
+        self.tile_size = 3000
+        self.run_specific_tile = None
+        self.run_specific_tileset = None
+
+        self.resolution = None
+        self.crs = None       
+        self.left = None
+        self.top = None
+
+        # To pass to the crop_row_detector
+        self.generate_debug_images = None
+        self.tile_boundry = None
+        self.expected_crop_row_distance = 20
+        self.output_tile_location = None
+        self.threshold_level = None
+        self.filename_orthomosaic = None
 
     # Seperating into tiles and running crop rows on tiles
     def main(self, filename_segmented_orthomosaic):
