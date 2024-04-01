@@ -64,6 +64,14 @@ class Tile:
         # however I get the best results when this value is set to 30.
         self.expected_crop_row_distance = 20 # 30
 
+
+        #information for the world coordinates
+        self.resolution = None
+        self.crs = None
+        self.left = None
+        self.top = None
+        self.transform = None
+
     def load_tile_info(self, tile_number, output_tile_location, generate_debug_images, tile_boundry, threshold_level, expected_crop_row_distance):
         self.tile_number = tile_number
         self.output_tile_location = output_tile_location
@@ -71,6 +79,39 @@ class Tile:
         self.tile_boundry = tile_boundry
         self.threshold_level = threshold_level
         self.expected_crop_row_distance = expected_crop_row_distance
+
+    def load_tile_to_world_coordinates(self, resolution, crs, left, top):
+        self.resolution = resolution
+        self.crs = crs
+        self.left = left
+        self.top = top
+        self.ulc_global = [
+                self.top - (self.ulc[0] * self.resolution[0]), 
+                self.left + (self.ulc[1] * self.resolution[1])]
+        self.transform = Affine.translation(
+            self.ulc_global[1] + self.resolution[0] / 2,
+            self.ulc_global[0] - self.resolution[0] / 2) * \
+            Affine.scale(self.resolution[0], -self.resolution[0])
+        
+
+    def save_tile(self):
+        if self.output_tile_location is not None:
+            name_mahal_results = f'{ self.output_tile_location }/mahal{ self.tile_number:04d}.tiff'
+            img_to_save = cv2.cvtColor(self.img, cv2.COLOR_BGR2RGB)
+            channels = img_to_save.shape[2]
+            temp_to_save = img_to_save.transpose(2, 0, 1) 
+            new_dataset = rasterio.open(name_mahal_results,
+                                        'w',
+                                        driver='GTiff',
+                                        res=self.resolution,
+                                        height=self.size[0],
+                                        width=self.size[1],
+                                        count=channels,
+                                        dtype=temp_to_save.dtype,
+                                        crs=self.crs,
+                                        transform=self.transform)
+            new_dataset.write(temp_to_save)
+            new_dataset.close()
 
 
 def rasterio_opencv2(image):
