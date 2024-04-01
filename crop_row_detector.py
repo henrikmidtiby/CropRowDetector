@@ -282,26 +282,32 @@ class crop_row_detector:
         if int(x1) >= -1 and int(x1) <= img.shape[1]:
             temp.append([int(x1), img.shape[0]])
         #print("temp: ", temp)
-        return temp
+        return temp     
 
     def measure_vegetation_coverage_in_crop_row(self, tile):
         # 1. Blur image with a uniform kernel
         # Approx distance between crop rows is 16 pixels.
         # I would prefer to have a kernel size that is not divisible by two.
-        temp = self.gray.astype(np.uint8)
+        temp = tile.gray.astype(np.uint8)
         vegetation_map = cv2.blur(temp, (10, 10))
-        self.write_image_to_file("60_vegetation_map.png", vegetation_map)
+        self.write_image_to_file("60_vegetation_map.png", vegetation_map, tile)
 
         # 2. Sample pixel values along each crop row
         #    - cv2.remap
         # Hardcoded from earlier run of the algorithm.
         # missing_plants_image = cv2.cvtColor(vegetation_map.astype(np.uint8), cv2.COLOR_GRAY2BGR)
-        missing_plants_image = self.img
+        missing_plants_image = tile.img
         df_missing_vegetation_list = []
 
-        for counter, crop_row in enumerate(self.vegetation_lines):
+        DF_combined = pd.DataFrame({'tile': [],
+                                'row': [], 
+                                'x': [], 
+                                'y': [], 
+                                'vegetation': []})
+
+        for counter, crop_row in enumerate(tile.vegetation_lines):
             try:
-                angle = self.direction
+                angle = tile.direction
                 # Determine sample locations along the crop row
                 start_point = (crop_row[0][0], crop_row[0][1])
                 distance_between_samples = 1
@@ -325,56 +331,61 @@ class crop_row_detector:
                                             y_sample_coords.astype(np.float32), 
                                             cv2.INTER_LINEAR)
 
-                DF = pd.DataFrame({'tile': self.tile_number,
+                DF = pd.DataFrame({'tile': tile.tile_number,
                                 'row': counter, 
-                                'x': x_sample_coords + self.tile_size*tile.tile_position[1], 
-                                'y': y_sample_coords + self.tile_size*tile.tile_position[0], 
+                                'x': x_sample_coords + tile.size[0]*tile.tile_position[1], 
+                                'y': y_sample_coords + tile.size[1]*tile.tile_position[0], 
                                 'vegetation': vegetation_samples.transpose()[0]})
                 df_missing_vegetation_list.append(DF)
                 
 
-                missing_plants = DF[DF['vegetation'] < 60]
+                threshold_vegetation = 60
+                missing_plants = DF[DF['vegetation'] < threshold_vegetation]
                 for index, location in missing_plants.iterrows():
                     cv2.circle(missing_plants_image, 
-                            (int(location['x']), int(location['y'])), 
+                            (int(location['x'] - tile.size[0]*tile.tile_position[1]), 
+                             int(location['y'] - tile.size[1]*tile.tile_position[0])), 
                             2, 
                             (255, 255, 0), 
                             -1)
             except Exception as e:
                 print(e)
         
-                
-                
+        #print("df_missing_vegetation_list: ", df_missing_vegetation_list)
+
         #filename = self.date_time + "/" + "64_vegetation_samples.csv"
-        filename = self.output_tile_location + "/debug_images/" + f'{self.tile_number}' + "/" + "68_vegetation_samples.csv"
-        DF_combined = pd.concat(df_missing_vegetation_list)
-        print("Df: ", DF_combined, "\n\n")
-        print("Df: ", DF_combined.shape, "\n\n")
+        filename = tile.output_tile_location + "/debug_images/" + f'{tile.tile_number}' + "/" + "68_vegetation_samples.csv"
+        if df_missing_vegetation_list:
+            #print("df_missing_vegetation_list: ", df_missing_vegetation_list)
+            DF_combined = pd.concat(df_missing_vegetation_list)
+            
+        #print("Df: ", DF_combined, "\n\n")
+        #print("Df: ", DF_combined.shape, "\n\n")
         DF_combined.to_csv(filename)
-        self.write_image_to_file("67_missing_plants_in_crop_line.png", missing_plants_image)
+        self.write_image_to_file("67_missing_plants_in_crop_line.png", missing_plants_image, tile)
     
         # 3. Export to a csv file, include the following information
         #    - row number and offset
         #    - pixel coordinates
-        #    - vegetation coverage
-        
+        #    - vegetation coverage   
 
-    def draw_detected_crop_rows_on_segmented_image(self):
-        segmented_annotated = self.gray.copy()
+
+    def draw_detected_crop_rows_on_segmented_image(self, tile):
+        segmented_annotated = tile.gray.copy()
         # Draw detected crop rows on the segmented image
         origin = np.array((0, segmented_annotated.shape[1]))
         segmented_annotated = 255 - segmented_annotated
-        for peak_idx in self.peaks:
-            dist = self.d[peak_idx]
-            angle = self.direction
-            temp = self.get_line_ends_within_image(dist, angle, self.img)
+        for peak_idx in tile.peaks:
+            dist = tile.d[peak_idx]
+            angle = tile.direction
+            temp = self.get_line_ends_within_image(dist, angle, tile.img)
             try:
                 self.draw_crop_row(segmented_annotated, temp)
             except Exception as e:
                 print(e)
                 ic(temp)
         self.segmented_annotated = segmented_annotated
-        self.write_image_to_file("45_detected_crop_rows_on_segmented_image.png", segmented_annotated)
+        self.write_image_to_file("45_detected_crop_rows_on_segmented_image.png", segmented_annotated, tile)
 
     def draw_crop_row(self, segmented_annotated, temp):
         cv2.line(segmented_annotated, 
@@ -382,7 +393,8 @@ class crop_row_detector:
                             (temp[1][0], temp[1][1]), 
                             (0, 0, 255), 1)
 
-    def convert_to_grayscale(self):
+    # Dette burde aldrig køres, da der altid burde være et segmenteret billede
+    def convert_to_grayscale(self, tile):
         HSV = cv2.cvtColor(self.img, cv2.COLOR_BGR2HSV)
         HSV_gray = HSV[:,:,2].copy()
         #self.write_image_to_file("02_hsv.png", HSV_gray)
@@ -393,17 +405,43 @@ class crop_row_detector:
                 else:
                     HSV_gray[i,j] = 0
         #self.write_image_to_file("03_hsv.png", HSV_gray)
-        self.gray = HSV_gray
+        tile.gray = HSV_gray
 
-    def gray_reduce(self):
-        gray_temp = self.gray.copy()
-        for i in range(0, self.gray.shape[0]):
-            for j in range(0, self.gray.shape[1]):
-                if self.gray[i,j] < self.threshold_level:
+    def gray_reduce(self, tile):
+        gray_temp = tile.gray.copy()
+        for i in range(0, gray_temp.shape[0]):
+            for j in range(0, gray_temp.shape[1]):
+                if gray_temp[i,j] < tile.threshold_level:
                     gray_temp[i,j] = 255
                 else:
                     gray_temp[i,j] = 0
-        self.gray = gray_temp
+        tile.gray = gray_temp
+
+
+    def main(self, segmented_img, input_orthomosaic, tile):
+        # run row detection on tile
+        if segmented_img.shape[0] == 1:
+            tile.gray = segmented_img.reshape(segmented_img.shape[1], segmented_img.shape[2])
+            if input_orthomosaic is not None:
+                tile.img = input_orthomosaic
+            else: 
+                tile.img = segmented_img.reshape(segmented_img.shape[1], segmented_img.shape[2])
+            self.gray_reduce(tile)
+        else:
+            tile.img = segmented_img
+            self.convert_to_grayscale(tile)
+        
+        self.apply_hough_lines(tile)
+        self.determine_dominant_row(tile)
+        self.plot_counts_in_hough_accumulator_with_direction(tile)
+        self.determine_and_plot_offsets_of_crop_rows_with_direction(tile)
+        self.draw_detected_crop_rows_on_input_image(tile)
+        if tile.generate_debug_images:
+            self.draw_detected_crop_rows_on_segmented_image(tile)
+        self.measure_vegetation_coverage_in_crop_row(tile)
+        if tile.tile_boundry:
+            self.add_boundary_and_number_to_tile(tile)
+
 
     # Seperating into tiles and running crop rows on tiles
     def main(self, filename_segmented_orthomosaic):
