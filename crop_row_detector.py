@@ -84,40 +84,15 @@ def read_tile(orthomosaic, tile):
     return rasterio_opencv2(im)
 
 class crop_row_detector:
-    def __init__(self):
-        self.tile_number = None
-        self.generate_debug_images = None
-        self.tile_boundry = None
-        self.img = None
-        self.h = None
-        self.theta = None
-        self.d = None
-        self.direction_with_most_energy_idx = None
-        self.direction = None
-        self.peaks = None
-        self.gray = None
-        self.threshold_level = 10
-        # In gimp I have measured the crop row distance to be around 20 px.
-        # however I get the best results when this value is set to 30.
-        self.expected_crop_row_distance = 20 # 30
+    #def __init__(self):
+        
+        # This class is just a crop row detctor in form of a collection of functions, 
+        # all of the information is stored in the information class Tile.
+        
+        
 
+        
 
-        # opening and processing the image
-        self.filename_orthomosaic = None
-        self.output_tile_location = None
-        self.resolution = None
-        self.crs = None       
-        self.left = None
-        self.top = None
-        self.tile_size = 3000
-        self.tiles_plot = None
-        self.run_specific_tile = None
-        self.run_specific_tileset = None
-
-        # Save the endpoints of the detected crop rows
-        self.vegetation_lines = []
-        # List containing the lacking rows
-        self.filler_rows = []
 
 
     def ensure_parent_directory_exist(self, path):
@@ -125,32 +100,33 @@ class crop_row_detector:
         if not temp_path.exists():
             temp_path.mkdir()
 
-    def write_image_to_file(self, output_path, img): 
-        if self.generate_debug_images:
-            path = self.get_debug_output_filepath(output_path)
+    def write_image_to_file(self, output_path, img, tile): 
+        if tile.generate_debug_images:
+            path = self.get_debug_output_filepath(output_path, tile)
             self.ensure_parent_directory_exist(path)
             cv2.imwrite(path, img)
 
-    def get_debug_output_filepath(self, output_path):
-        return self.output_tile_location + "/debug_images/" + f'{self.tile_number}' + "/" + output_path
+    def get_debug_output_filepath(self, output_path, tile):
+        return tile.output_tile_location + "/debug_images/" + f'{tile.tile_number}' + "/" + output_path
 
-    def write_plot_to_file(self, output_path):
-        if self.generate_debug_images:
-            path = self.get_debug_output_filepath(output_path)
+    def write_plot_to_file(self, output_path, tile):
+        if tile.generate_debug_images:
+            path = self.get_debug_output_filepath(output_path, tile)
             self.ensure_parent_directory_exist(path)
             plt.savefig(path, dpi=300)
 
-    def apply_top_hat(self):
+    def apply_top_hat(self, h, tile):
         # column filter with the distance between 2 rows
-        filterSize = (1, int(self.expected_crop_row_distance)) 
+        filterSize = (1, int(tile.expected_crop_row_distance)) 
         kernel = cv2.getStructuringElement(cv2.MORPH_RECT,  
                                         filterSize) 
         # Applying the Top-Hat operation 
-        self.h = cv2.morphologyEx(self.h,  
+        h = cv2.morphologyEx(h,  
                                     cv2.MORPH_TOPHAT, 
                                     kernel)
+        return h
 
-    def apply_hough_lines(self):
+    def apply_hough_lines(self, tile):
         # Apply the hough transform
         number_of_angles = 8*360
         tested_angles = np.linspace(-np.pi / 2, np.pi / 2, number_of_angles)
@@ -159,126 +135,133 @@ class crop_row_detector:
         #scipy's implementation er anvendt, da denne for nu er hurtigere
         #self.h, self.theta, self.d = hough_transform_grayscale.hough_line(self.gray, theta=tested_angles)
         #t2 = time.time()
-        self.h, self.theta, self.d = hough_line(self.gray, theta=tested_angles)
+        h, tile.theta, tile.d = hough_line(tile.gray, theta=tested_angles)
         
         #print("Time to run hough transform: ", t2 - t1)
         #print("Time to run hough transform: ", time.time() - t2)
-        self.h = self.h.astype(np.float32)
-        temp = cv2.minMaxLoc(self.h)[1]
-        self.write_image_to_file("33_hough_image.png", 255 * self.h/temp)
+        h = h.astype(np.float32)
+        h = self.divide_by_max_in_array(h)
+        self.write_image_to_file("33_hough_image.png", 255 * h, tile)
 
         # Blur image using a 5 x 1 average filter
         kernel = np.ones((5,1), np.float32) / 5
-        self.h = cv2.filter2D(self.h, -1, kernel)
-        self.write_image_to_file("34_hough_image_blurred.png", 255 * self.h/temp)
+        h = cv2.filter2D(h, -1, kernel)
+        h = self.divide_by_max_in_array(h)
+        self.write_image_to_file("34_hough_image_blurred.png", 255 * h, tile)
 
-        self.apply_top_hat()
+        h = self.apply_top_hat(h, tile)
         
-        temp = cv2.minMaxLoc(self.h)[1]
+        tile.h = self.divide_by_max_in_array(h)
+
+        self.write_image_to_file("35_hough_image_tophat.png", 255 * h, tile)
+
+    def divide_by_max_in_array(self, arr):
+        temp = cv2.minMaxLoc(arr)[1]
         if temp > 0:
-            self.h = self.h/temp
-        else:
-            self.h = self.h + 0.01
+            arr = arr/temp
+        return arr
 
-        self.write_image_to_file("35_hough_image_tophat.png", 255 * self.h)
-
-    def determine_dominant_row(self):
+    def determine_dominant_row(self, tile):
         # Determine the dominant row direction
-        direction_response = np.sum(np.square(self.h), axis=0)
-        baseline_fitter = Baseline(self.theta*180/np.pi, check_finite=False)
+        direction_response = np.sum(np.square(tile.h), axis=0)
+        baseline_fitter = Baseline(tile.theta*180/np.pi, check_finite=False)
+
+        print("h: ", tile.h)
+
+        print("subtract problem: ", np.log(direction_response), baseline_fitter.mor(np.log(direction_response), half_window=30)[0])
         
         # Normalize the direction response
         Direc_energi = np.log(direction_response) - baseline_fitter.mor(np.log(direction_response), half_window=30)[0]
         max = np.max(Direc_energi)
 
+        
+
 
         # the direction with the most energi is dicided from sum of the squrare of the hough transform
         # it is possible to subtrack the baseline, but this does not always provide a better result.
-        self.direction_with_most_energy_idx = np.argmax(direction_response)#Direc_energi)
-        self.direction = self.theta[self.direction_with_most_energy_idx]
+        tile.direction_with_most_energy_idx = np.argmax(direction_response)#Direc_energi)
+        tile.direction = tile.theta[tile.direction_with_most_energy_idx]
         
         # Plot the direction response and normalized direction response
         plt.figure(figsize=(16, 9))
-        plt.plot(self.theta*180/np.pi, np.log(direction_response), color='blue')
-        self.write_plot_to_file("36_direction_energies.png")
-        plt.plot(self.theta*180/np.pi, Direc_energi, color='orange')
-        self.write_plot_to_file("36_direction_energies_2.png")
+        plt.plot(tile.theta*180/np.pi, np.log(direction_response), color='blue')
+        self.write_plot_to_file("36_direction_energies.png", tile)
+        plt.plot(tile.theta*180/np.pi, Direc_energi, color='orange')
+        self.write_plot_to_file("36_direction_energies_2.png", tile)
         plt.close()
 
         plt.figure(figsize=(16, 9))
-        plt.plot(self.theta*180/np.pi, 
+        plt.plot(tile.theta*180/np.pi, 
                  Direc_energi, 
                  color='orange')
         if max != 0:
-            plt.plot(self.theta*180/np.pi, 
+            plt.plot(tile.theta*180/np.pi, 
                      Direc_energi/max,
                      color='blue')
-        self.write_plot_to_file("37_direction_energies_normalized.png")
+        self.write_plot_to_file("37_direction_energies_normalized.png", tile)
         plt.close()
 
-    def plot_counts_in_hough_accumulator_with_direction(self):
+    def plot_counts_in_hough_accumulator_with_direction(self, tile):
         plt.figure(figsize=(16, 9))
-        plt.plot(self.h[:, self.direction_with_most_energy_idx])
-        self.write_plot_to_file("38_row_offsets.png")
+        plt.plot(tile.h[:, tile.direction_with_most_energy_idx])
+        self.write_plot_to_file("38_row_offsets.png", tile)
         plt.close()
 
-    def determine_and_plot_offsets_of_crop_rows_with_direction(self):
-        signal = self.h[:, self.direction_with_most_energy_idx]
+    def determine_and_plot_offsets_of_crop_rows_with_direction(self, tile):
+        signal = tile.h[:, tile.direction_with_most_energy_idx]
 
         
-        peaks, _ = find_peaks(signal, distance=self.expected_crop_row_distance / 2)
-        self.peaks = peaks
+        peaks, _ = find_peaks(signal, distance=tile.expected_crop_row_distance / 2)
+        tile.peaks = peaks
         plt.figure(figsize=(16, 9))
         plt.plot(signal)
         plt.plot(peaks, signal[peaks], "x")
         plt.plot(np.zeros_like(signal), "--", color="gray")
-        self.write_plot_to_file("39_signal_with_detected_peaks.png")
+        self.write_plot_to_file("39_signal_with_detected_peaks.png", tile)
         plt.close()
 
-    def draw_detected_crop_rows_on_input_image(self):
-        self.vegetation_lines = []
+    def draw_detected_crop_rows_on_input_image(self, tile):
+        tile.vegetation_lines = []
         # Draw detected crop rows on the input image
-        origin = np.array((0, self.img.shape[1])) 
+        origin = np.array((0, tile.img.shape[1])) 
         prev_peak_dist = 0
-        for peak_idx in self.peaks:
-            dist = self.d[peak_idx]
-            angle = self.direction
+        for peak_idx in tile.peaks:
+            dist = tile.d[peak_idx]
+            angle = tile.direction
 
-            self.fill_in_gaps_in_detected_crop_rows(dist, prev_peak_dist, angle)
+            self.fill_in_gaps_in_detected_crop_rows(dist, prev_peak_dist, angle, tile)
 
-            temp = self.get_line_ends_within_image(dist, angle, self.img)
+            temp = self.get_line_ends_within_image(dist, angle, tile.img)
             try:
-                cv2.line(self.img, (temp[0][0], temp[0][1]), 
+                cv2.line(tile.img, (temp[0][0], temp[0][1]), 
                          (temp[1][0], temp[1][1]), (0, 0, 255), 1)
             except Exception as e:
                 print(e)
                 ic(temp)
             prev_peak_dist = dist
-            self.vegetation_lines.append(temp)
-        #print("filler_rows: ", self.filler_rows)
-        print("length of vegetation_lines: ", len(self.vegetation_lines))
-        if self.tile_boundry:
-            self.add_boundary_and_number_to_tile()
-        self.write_image_to_file("40_detected_crop_rows.png", self.img)
+            tile.vegetation_lines.append(temp)
+        if tile.tile_boundry:
+            self.add_boundary_and_number_to_tile(tile)
+        self.write_image_to_file("40_detected_crop_rows.png", tile.img, tile)
 
-    def add_boundary_and_number_to_tile(self):
-        cv2.line(self.img, (0, 0), (self.img.shape[1]-1, 0), (0, 0, 255), 1)
-        cv2.line(self.img, (0, self.img.shape[0]-1), (self.img.shape[1]-1, self.img.shape[0]-1), (0, 0, 255), 1)
-        cv2.line(self.img, (0, 0), (0, self.img.shape[0]-1), (0, 0, 255), 1)
-        cv2.line(self.img, (self.img.shape[1]-1, 0), (self.img.shape[1]-1, self.img.shape[0]-1), (0, 0, 255), 1)
-        cv2.putText(self.img, f'{self.tile_number}', (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 255), 2, cv2.LINE_AA)
+    def add_boundary_and_number_to_tile(self, tile):
+        cv2.line(tile.img, (0, 0), (tile.img.shape[1]-1, 0), (0, 0, 255), 1)
+        cv2.line(tile.img, (0, tile.img.shape[0]-1), (tile.img.shape[1]-1, tile.img.shape[0]-1), (0, 0, 255), 1)
+        cv2.line(tile.img, (0, 0), (0, tile.img.shape[0]-1), (0, 0, 255), 1)
+        cv2.line(tile.img, (tile.img.shape[1]-1, 0), (tile.img.shape[1]-1, tile.img.shape[0]-1), (0, 0, 255), 1)
+        cv2.putText(tile.img, f'{tile.tile_number}', (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 255), 2, cv2.LINE_AA)
 
-    def fill_in_gaps_in_detected_crop_rows(self, dist, prev_peak_dist, angle):
+    def fill_in_gaps_in_detected_crop_rows(self, dist, prev_peak_dist, angle, tile):
         # If distance between two rows is larger than twice the expected row distance,
         # Then fill in the gap with lines.
-        if prev_peak_dist != 0 and dist - prev_peak_dist > 2 * self.expected_crop_row_distance:
-            while prev_peak_dist + self.expected_crop_row_distance < dist-self.expected_crop_row_distance:
-                prev_peak_dist += self.expected_crop_row_distance
-                temp = self.get_line_ends_within_image(prev_peak_dist, angle, self.img)
-                cv2.line(self.img, (temp[0][0], temp[0][1]), 
+        if prev_peak_dist != 0 and dist - prev_peak_dist > 2 * tile.expected_crop_row_distance:
+            while prev_peak_dist + tile.expected_crop_row_distance < dist-tile.expected_crop_row_distance:
+                prev_peak_dist += tile.expected_crop_row_distance
+                temp = self.get_line_ends_within_image(prev_peak_dist, angle, tile.img)
+                cv2.line(tile.img, (temp[0][0], temp[0][1]), 
                             (temp[1][0], temp[1][1]), (0, 0, 255), 1)
-                self.filler_rows.append([temp, len(self.vegetation_lines), self.tile_number])
-                self.vegetation_lines.append(temp)
+                tile.filler_rows.append([temp, len(tile.vegetation_lines), tile.tile_number])
+                tile.vegetation_lines.append(temp)
                 
 
     def get_line_ends_within_image(self, dist, angle, img):
