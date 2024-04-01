@@ -481,36 +481,55 @@ class tile_separator:
             self.left = src.bounds[0]
             self.top = src.bounds[3]
 
-        if self.filename_orthomosaic is not None:
-            with rasterio.open(self.filename_orthomosaic) as src:
-                self.resolution = src.res
-                self.crs = src.crs
-                self.left = src.bounds[0]
-                self.top = src.bounds[3]
-
         processing_tiles = self.get_processing_tiles(filename_segmented_orthomosaic,
                                                      self.tile_size)
         if self.filename_orthomosaic is not None:
-            self.tiles_plot = self.get_processing_tiles(self.filename_orthomosaic,
+            tiles_plot = self.get_processing_tiles(self.filename_orthomosaic,
                                                      self.tile_size)
 
-        for tile_number, tile in enumerate(tqdm(processing_tiles)):
+        specified_processing_tiles = self.get_list_of_specified_tiles(processing_tiles)
+
+
+
+        # Initialize the crop row detector
+        crd = crop_row_detector()
+        
+        
+        
+        
+
+        # This is what needs to be multi-threaded
+        for tile_number, tile in tqdm(specified_processing_tiles):
+            
+
+            # Initilize the tile with the necessary information
             tile.tile_number = tile_number
-            if self.run_specific_tileset is not None:
-                if tile_number >= self.run_specific_tileset[0] and tile_number <= self.run_specific_tileset[1]:
-                    img = read_tile(filename_segmented_orthomosaic, tile)
-                    self.process_tile(img, tile_number, tile)
-                elif self.run_specific_tile is not None:
+            tile.threshold_level = self.threshold_level
+            tile.generate_debug_images = self.generate_debug_images
+            tile.tile_boundry = self.tile_boundry
+            tile.output_tile_location = self.output_tile_location
+            tile.expected_crop_row_distance = self.expected_crop_row_distance
+            
+            # Run the initialized crop row detector on the tile
+            original_orthomosaic = read_tile(self.filename_orthomosaic, tiles_plot[tile.tile_number])
+            segmented_img = read_tile(filename_segmented_orthomosaic, tile)
+            self.process_tile(segmented_img, original_orthomosaic, crd, tile)
+
+    # with the given command line arguments, this function will return a list of tiles that should be processed
+    def get_list_of_specified_tiles(self, tile_list):
+        tiles_with_number = []
+        for tile_number, tile in enumerate(tile_list):
+            if self.run_specific_tileset is not None or self.run_specific_tile is not None:
+                if self.run_specific_tileset is not None:
+                    if tile_number >= self.run_specific_tileset[0] and tile_number <= self.run_specific_tileset[1]:
+                        tiles_with_number.append([tile_number, tile])
+                if self.run_specific_tile is not None:
                     if tile_number in self.run_specific_tile:
-                        img = read_tile(filename_segmented_orthomosaic, tile)
-                        self.process_tile(img, tile_number, tile)
-            elif self.run_specific_tile is not None:
-                if tile_number in self.run_specific_tile:
-                    img = read_tile(filename_segmented_orthomosaic, tile)
-                    self.process_tile(img, tile_number, tile)
+                        tiles_with_number.append([tile_number, tile])
             else:
-                img = read_tile(filename_segmented_orthomosaic, tile)
-                self.process_tile(img, tile_number, tile)
+                tiles_with_number.append([tile_number, tile])
+
+        return tiles_with_number
 
     def get_processing_tiles(self, filename_segmented_orthomosaic, tile_size):
         """
@@ -576,33 +595,14 @@ class tile_separator:
 
         return tiles, step_width, step_height
 
-    def process_tile(self, segmented_img, tile_number, tile):
+    def process_tile(self, segmented_img, original_orthomosaic, crd, tile):
         
         width = tile.size[1]
         height = tile.size[0]
-        self.tile_number = tile_number
-        # run row detection on tile
-        if segmented_img.shape[0] == 1:
-            self.gray = segmented_img.reshape(segmented_img.shape[1], segmented_img.shape[2])
-            if self.filename_orthomosaic is not None:
-                self.img = read_tile(self.filename_orthomosaic, self.tiles_plot[tile_number])
-            else: 
-                self.img = segmented_img.reshape(segmented_img.shape[1], segmented_img.shape[2])
-            self.gray_reduce()
-        else:
-            self.img = segmented_img
-            self.convert_to_grayscale()
         
-        self.apply_hough_lines()
-        self.determine_dominant_row()
-        self.plot_counts_in_hough_accumulator_with_direction()
-        self.determine_and_plot_offsets_of_crop_rows_with_direction()
-        self.draw_detected_crop_rows_on_input_image()
-        if self.generate_debug_images:
-            self.draw_detected_crop_rows_on_segmented_image()
-        self.measure_vegetation_coverage_in_crop_row(tile)
-        if self.tile_boundry:
-            self.add_boundary_and_number_to_tile()
+
+        crd.main(segmented_img, original_orthomosaic, tile)
+
 
         # save results
         tile.ulc_global = [
@@ -613,13 +613,8 @@ class tile_separator:
             tile.ulc_global[0] - self.resolution[0] / 2) * \
             Affine.scale(self.resolution[0], -self.resolution[0])
 
-        print("tile_position: ", tile.tile_position)
-        print("tile.ulc: ", tile.ulc)
-        print("tile.ulc_global: ", tile.ulc_global)
-        print("tile_number: ", tile.tile_number)
-
         # optional save of results - just lob detection and thresholding result
-        self.save_results(self.img, tile_number,
+        self.save_results(tile.img, tile.tile_number,
                           self.resolution, height, width, self.crs, transform)
 
     def save_results(self, img, tile_number, res, height, width, crs, transform):
