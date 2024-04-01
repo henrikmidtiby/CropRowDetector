@@ -205,9 +205,13 @@ class crop_row_detector:
         self.write_image_to_file("35_hough_image_tophat.png", 255 * h, tile)
 
     def divide_by_max_in_array(self, arr):
-        temp = cv2.minMaxLoc(arr)[1]
-        if temp > 0:
-            arr = arr/temp
+        max = cv2.minMaxLoc(arr)[1]
+        if max > 0:
+            arr = arr/max
+        else:
+            # This is implemented to stop the padding tiles from being 0 
+            # and therefore throwing an error when using np.log, as log(0) is undefined.
+            arr = arr + 10e-10
         return arr
 
     def determine_dominant_row(self, tile):
@@ -215,9 +219,6 @@ class crop_row_detector:
         direction_response = np.sum(np.square(tile.h), axis=0)
         baseline_fitter = Baseline(tile.theta*180/np.pi, check_finite=False)
 
-        print("h: ", tile.h)
-
-        print("subtract problem: ", np.log(direction_response), baseline_fitter.mor(np.log(direction_response), half_window=30)[0])
         
         # Normalize the direction response
         Direc_energi = np.log(direction_response) - baseline_fitter.mor(np.log(direction_response), half_window=30)[0]
