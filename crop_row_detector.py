@@ -659,7 +659,7 @@ parser.add_argument('--tile_boundry',
                     default = False,
                     type = bool,
                     help='if set to true will plot a boundry on each tile ' 
-                    'and the tile number on the til, is default False.')
+                    'and the tile number on the tile, is default False.')
 parser.add_argument('--run_specific_tile',
                     nargs='+',
                     type=int,
@@ -676,17 +676,19 @@ parser.add_argument('--expected_crop_row_distance',
                     help='The expected distance between crop rows in pixels, default is 20.')
 args = parser.parse_args()
 
-crd = crop_row_detector()
-crd.generate_debug_images = args.generate_debug_images
-crd.tile_boundry = args.tile_boundry
-crd.run_specific_tile = args.run_specific_tile
-crd.run_specific_tileset = args.run_specific_tileset
-crd.tile_size = args.tile_size
-crd.expected_crop_row_distance = args.expected_crop_row_distance
-crd.output_tile_location = args.output_tile_location
-crd.filename_orthomosaic = args.orthomosaic
-crd.threshold_level = 12
-crd.main(args.segmented_orthomosaic)
+
+tsr = tile_separator()
+tsr.generate_debug_images = args.generate_debug_images
+tsr.tile_boundry = args.tile_boundry
+tsr.run_specific_tile = args.run_specific_tile
+tsr.run_specific_tileset = args.run_specific_tileset
+tsr.tile_size = args.tile_size
+tsr.expected_crop_row_distance = args.expected_crop_row_distance
+tsr.output_tile_location = args.output_tile_location
+tsr.filename_orthomosaic = args.orthomosaic
+tsr.threshold_level = 12
+tsr.main(args.segmented_orthomosaic)
+
 
 
 
