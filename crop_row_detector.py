@@ -66,9 +66,7 @@ class crop_row_detector:
         kernel = cv2.getStructuringElement(cv2.MORPH_RECT,  
                                         filterSize) 
         # Applying the Top-Hat operation 
-        h = cv2.morphologyEx(h,  
-                                    cv2.MORPH_TOPHAT, 
-                                    kernel)
+        h = cv2.morphologyEx(h, cv2.MORPH_TOPHAT, kernel)
         return h
 
     def apply_hough_lines(self, tile):
@@ -198,17 +196,17 @@ class crop_row_detector:
         cv2.putText(tile.img, f'{tile.tile_number}', (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 255), 2, cv2.LINE_AA)
 
     def fill_in_gaps_in_detected_crop_rows(self, dist, prev_peak_dist, angle, tile):
-        # If distance between two rows is larger than twice the expected row distance,
-        # Then fill in the gap with lines.
-        if prev_peak_dist != 0 and dist - prev_peak_dist > 2 * tile.expected_crop_row_distance:
-            while prev_peak_dist + tile.expected_crop_row_distance < dist-tile.expected_crop_row_distance:
+        if prev_peak_dist != 0:
+            while self.distance_between_two_peaks_is_larger_than_expected(dist, prev_peak_dist, tile):
                 prev_peak_dist += tile.expected_crop_row_distance
                 temp = self.get_line_ends_within_image(prev_peak_dist, angle, tile.img)
                 cv2.line(tile.img, (temp[0][0], temp[0][1]), 
                             (temp[1][0], temp[1][1]), (0, 0, 255), 1)
                 tile.filler_rows.append([temp, len(tile.vegetation_lines), tile.tile_number])
                 tile.vegetation_lines.append(temp)
-                
+    
+    def distance_between_two_peaks_is_larger_than_expected(self, dist, prev_peak_dist, tile):
+        return dist - prev_peak_dist > 2 * tile.expected_crop_row_distance
 
     def get_line_ends_within_image(self, dist, angle, img):
         x_val_range = np.array((0, img.shape[1]))
