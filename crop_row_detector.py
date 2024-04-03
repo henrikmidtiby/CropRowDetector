@@ -448,6 +448,11 @@ tsr.output_tile_location = args.output_tile_location
 tsr.filename_orthomosaic = args.orthomosaic
 tsr.threshold_level = 12
 tsr.main(args.segmented_orthomosaic)
+tile_list = tsr.specified_tiles
+
+# Initialize the crop row detector
+crd = crop_row_detector()
+crd.main(tile_list)
 
 
 
