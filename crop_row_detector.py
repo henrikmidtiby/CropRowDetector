@@ -118,8 +118,6 @@ class crop_row_detector:
         Direc_energi = np.log(direction_response) - baseline_fitter.mor(np.log(direction_response), half_window=30)[0]
         max = np.max(Direc_energi)
 
-        
-
 
         # the direction with the most energi is dicided from sum of the squrare of the hough transform
         # it is possible to subtrack the baseline, but this does not always provide a better result.
@@ -313,7 +311,8 @@ class crop_row_detector:
         #    - pixel coordinates
         #    - vegetation coverage   
 
-
+    
+    # This image is not saved but only used in debugging
     def draw_detected_crop_rows_on_segmented_image(self, tile):
         segmented_annotated = tile.gray.copy()
         # Draw detected crop rows on the segmented image
@@ -362,17 +361,25 @@ class crop_row_detector:
         tile.gray = gray_temp
 
 
-    def main(self, segmented_img, input_orthomosaic, tile):
+    def main(self, tiles):
+        
+        with concurrent.futures.ProcessPoolExecutor() as executor:
+            executor.map(self.detect_crop_rows, tiles)
+        
+        #for tile in tqdm(tiles):
+        #    self.detect_crop_rows(tile)
+
+    def detect_crop_rows(self, tile):
         # run row detection on tile
-        if segmented_img.shape[0] == 1:
-            tile.gray = segmented_img.reshape(segmented_img.shape[1], segmented_img.shape[2])
-            if input_orthomosaic is not None:
-                tile.img = input_orthomosaic
+        if tile.segmented_img.shape[0] == 1:
+            tile.gray = tile.segmented_img.reshape(tile.segmented_img.shape[1], tile.segmented_img.shape[2])
+            if tile.original_orthomosaic is not None:
+                tile.img = tile.original_orthomosaic
             else: 
-                tile.img = segmented_img.reshape(segmented_img.shape[1], segmented_img.shape[2])
+                tile.img = tile.segmented_img.reshape(tile.segmented_img.shape[1], tile.segmented_img.shape[2]).copy()
             self.gray_reduce(tile)
         else:
-            tile.img = segmented_img
+            tile.img = tile.segmented_img
             self.convert_to_grayscale(tile)
         
         self.apply_hough_lines(tile)
@@ -385,6 +392,7 @@ class crop_row_detector:
         self.measure_vegetation_coverage_in_crop_row(tile)
         if tile.tile_boundry:
             self.add_boundary_and_number_to_tile(tile)
+        tile.save_tile()
 
 class tile_separator:
     def __init__(self):
