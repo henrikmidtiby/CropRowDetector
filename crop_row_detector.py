@@ -107,6 +107,8 @@ class crop_row_detector:
         
         # Normalize the direction response
         Direc_energi = np.log(direction_response) - baseline_fitter.mor(np.log(direction_response), half_window=30)[0]
+        Direc_energi_2 = direction_response - baseline_fitter.mor(direction_response, half_window=30)[0]
+        baseline = baseline_fitter.mor(direction_response, half_window=30)[0]
         max = np.max(Direc_energi)
 
 
@@ -119,7 +121,9 @@ class crop_row_detector:
         plt.figure(figsize=(16, 9))
         plt.plot(tile.theta*180/np.pi, np.log(direction_response), color='blue')
         self.write_plot_to_file("36_direction_energies.png", tile)
+        plt.plot(tile.theta*180/np.pi, Direc_energi_2, color='green')
         plt.plot(tile.theta*180/np.pi, Direc_energi, color='orange')
+        plt.plot(tile.theta*180/np.pi, baseline, color='red')
         self.write_plot_to_file("36_direction_energies_2.png", tile)
         plt.close()
 
