@@ -8,26 +8,14 @@ import argparse
 from icecream import ic
 from pybaselines import Baseline
 
-import rasterio
-from rasterio.windows import Window
-from rasterio.transform import Affine
-from tqdm import tqdm
-import os
-
 #import hough_transform_grayscale
 from skimage.transform import hough_line
 
 import time
-
 from tile_separator import tile_separator
-
 import concurrent.futures
 
-
-# python3 crop_row_detector.py 2023-05-01_Alm_rajgraes_cleopatra_jsj_imput_image --generate_debug_images True --debug_image_folder output 
-
-
-
+from tqdm import tqdm
 
 
 
