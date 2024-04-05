@@ -106,18 +106,14 @@ class tile_separator:
             if self.run_specific_tileset is not None or self.run_specific_tile is not None:
                 if self.run_specific_tileset is not None:
                     if tile_number >= self.run_specific_tileset[0] and tile_number <= self.run_specific_tileset[1]:
-                        self.pass_tile_number_to_tile_and_append_to_list(tile_number, tile, specified_tiles)
+                        specified_tiles.append(tile)
                 if self.run_specific_tile is not None:
                     if tile_number in self.run_specific_tile:
-                        self.pass_tile_number_to_tile_and_append_to_list(tile_number, tile, specified_tiles)
+                        specified_tiles.append(tile)
             else:
-                self.pass_tile_number_to_tile_and_append_to_list(tile_number, tile, specified_tiles)
+                specified_tiles.append(tile)
 
         return specified_tiles
-    
-    def pass_tile_number_to_tile_and_append_to_list(self, tile_number, tile, tile_list):
-        tile.tile_number = tile_number
-        tile_list.append(tile)
 
 
     def get_processing_tiles(self, filename_segmented_orthomosaic, tile_size):
@@ -136,7 +132,9 @@ class tile_separator:
         half_overlap_c = (tile_size-st_width)/2
         half_overlap_r = (tile_size-st_height)/2
 
-        for tile in processing_tiles:
+        for tile_number, tile in enumerate(processing_tiles):
+            tile.tile_number = tile_number
+            tile.output_tile_location = self.output_tile_location
             tile.processing_range = [[half_overlap_r, tile_size - half_overlap_r],
                                      [half_overlap_c, tile_size - half_overlap_c]]
             if tile.tile_position[0] == 0:
