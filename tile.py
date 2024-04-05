@@ -27,13 +27,13 @@ class Tile:
             self.ulc_global[0] - self.resolution[0] / 2) * \
             Affine.scale(self.resolution[0], -self.resolution[0])
 
-        # Data for the detected crop rows
-        # Tile
+        
         
         self.tile_number = None
         self.img = None
         self.gray = None
 
+        # Data for the crop row detecter
         # Hough transform and directions
         self.h = None
         self.theta = None
@@ -58,25 +58,7 @@ class Tile:
         # In gimp I have measured the crop row distance to be around 20 px.
         # however I get the best results when this value is set to 30.
         self.expected_crop_row_distance = 20 # 30
-
-
-        #information for the world coordinates
-        
-
-    def load_tile_info(self, output_tile_location, generate_debug_images, tile_boundry, threshold_level, expected_crop_row_distance):
-        self.output_tile_location = output_tile_location
-        self.generate_debug_images = generate_debug_images
-        self.tile_boundry = tile_boundry
-        self.threshold_level = threshold_level
-        self.expected_crop_row_distance = expected_crop_row_distance
-
-    def load_tile_to_world_coordinates(self, resolution, crs, left, top):
-        self.resolution = resolution
-        self.crs = crs
-        self.left = left
-        self.top = top
-        
-        
+ 
 
     def save_tile(self):
         #if self.original_orthomosaic is not None:
