@@ -38,26 +38,16 @@ class tile_separator:
         self.left = None
         self.top = None
 
-        # To pass to the crop_row_detector
-        self.generate_debug_images = None
-        self.tile_boundry = None
-        self.expected_crop_row_distance = 20
         self.output_tile_location = None
-        self.threshold_level = None
         self.filename_orthomosaic = None
 
-    # Seperating into tiles and running crop rows on tiles
+
     def main(self, filename_segmented_orthomosaic):
         output_directory = os.path.dirname(self.output_tile_location)
         if not os.path.isdir(output_directory):
             os.makedirs(output_directory)
-        self.process_orthomosaic(filename_segmented_orthomosaic)
-
-    def process_orthomosaic(self, filename_segmented_orthomosaic):
-        start_time = time.time()
         self.divide_orthomosaic_into_tiles(filename_segmented_orthomosaic)
-        proc_time = time.time() - start_time
-        # print('Calculation of color distances: ', proc_time)
+        return self.specified_tiles
 
     def divide_orthomosaic_into_tiles(self, filename_segmented_orthomosaic):
         with rasterio.open(filename_segmented_orthomosaic) as src:
@@ -65,7 +55,6 @@ class tile_separator:
             self.crs = src.crs
             self.left = src.bounds[0]
             self.top = src.bounds[3]
-
 
         processing_tiles = self.get_processing_tiles(filename_segmented_orthomosaic,
                                                      self.tile_size)
@@ -77,16 +66,6 @@ class tile_separator:
         
         
         for tile in specified_processing_tiles:
-            
-
-            # Initilize the tile with the necessary information
-            tile.load_tile_info(self.output_tile_location, 
-                                self.generate_debug_images, 
-                                self.tile_boundry, 
-                                self.threshold_level, 
-                                self.expected_crop_row_distance)
-            
-            
             # Run the initialized crop row detector on the tile
             if self.filename_orthomosaic is not None:
                 original_orthomosaic = read_tile(self.filename_orthomosaic, tiles_plot[tile.tile_number])
