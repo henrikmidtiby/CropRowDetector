@@ -20,8 +20,11 @@ from tqdm import tqdm
 
 
 class crop_row_detector:
-    #def __init__(self):
-        
+    def __init__(self):
+        self.generate_debug_images = False
+        self.tile_boundry = False
+        self.threshold_level = 10
+        self.expected_crop_row_distance = 20
         # This class is just a crop row detctor in form of a collection of functions, 
         # all of the information is stored in the information class Tile.
         
