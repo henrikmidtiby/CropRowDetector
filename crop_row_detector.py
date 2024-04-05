@@ -36,14 +36,14 @@ class crop_row_detector:
         if not temp_path.exists():
             temp_path.mkdir()
 
+    def get_debug_output_filepath(self, output_path, tile):
+        return tile.output_tile_location + "/debug_images/" + f'{tile.tile_number}' + "/" + output_path
+
     def write_image_to_file(self, output_path, img, tile): 
         if tile.generate_debug_images:
             path = self.get_debug_output_filepath(output_path, tile)
             self.ensure_parent_directory_exist(path)
             cv2.imwrite(path, img)
-
-    def get_debug_output_filepath(self, output_path, tile):
-        return tile.output_tile_location + "/debug_images/" + f'{tile.tile_number}' + "/" + output_path
 
     def write_plot_to_file(self, output_path, tile):
         if tile.generate_debug_images:
@@ -427,22 +427,22 @@ parser.add_argument('--expected_crop_row_distance',
                     help='The expected distance between crop rows in pixels, default is 20.')
 args = parser.parse_args()
 
-
+# Initialize the tile separator
 tsr = tile_separator()
-tsr.generate_debug_images = args.generate_debug_images
-tsr.tile_boundry = args.tile_boundry
 tsr.run_specific_tile = args.run_specific_tile
 tsr.run_specific_tileset = args.run_specific_tileset
 tsr.tile_size = args.tile_size
-tsr.expected_crop_row_distance = args.expected_crop_row_distance
 tsr.output_tile_location = args.output_tile_location
 tsr.filename_orthomosaic = args.orthomosaic
-tsr.threshold_level = 12
-tsr.main(args.segmented_orthomosaic)
-tile_list = tsr.specified_tiles
+tile_list = tsr.main(args.segmented_orthomosaic)
+
 
 # Initialize the crop row detector
 crd = crop_row_detector()
+crd.generate_debug_images = args.generate_debug_images
+crd.tile_boundry = args.tile_boundry
+crd.expected_crop_row_distance = args.expected_crop_row_distance
+crd.threshold_level = 12
 crd.main(tile_list)
 
 
