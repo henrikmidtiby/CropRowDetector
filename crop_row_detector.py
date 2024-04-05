@@ -355,14 +355,26 @@ class crop_row_detector:
                     gray_temp[i,j] = 0
         tile.gray = gray_temp
 
+    def load_tile_with_data_needed_for_crop_row_detection(self, tile):
+        tile.generate_debug_images = self.generate_debug_images
+        tile.tile_boundry = self.tile_boundry
+        tile.threshold_level = self.threshold_level
+        tile.expected_crop_row_distance = self.expected_crop_row_distance
+
 
     def main(self, tiles):
         
+        for tile in tiles:
+            self.load_tile_with_data_needed_for_crop_row_detection(tile)
+
+        start = time.time()
         with concurrent.futures.ProcessPoolExecutor() as executor:
             executor.map(self.detect_crop_rows, tiles)
         
         #for tile in tqdm(tiles):
         #    self.detect_crop_rows(tile)
+
+        print("Time to run all tiles: ", time.time() - start)
 
     def detect_crop_rows(self, tile):
         # run row detection on tile
