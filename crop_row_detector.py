@@ -114,16 +114,17 @@ class crop_row_detector:
 
         # the direction with the most energi is dicided from sum of the squrare of the hough transform
         # it is possible to subtrack the baseline, but this does not always provide a better result.
-        tile.direction_with_most_energy_idx = np.argmax(direction_response)#Direc_energi)
+        tile.direction_with_most_energy_idx = np.argmax(baseline)
         tile.direction = tile.theta[tile.direction_with_most_energy_idx]
         
         # Plot the direction response and normalized direction response
         plt.figure(figsize=(16, 9))
-        plt.plot(tile.theta*180/np.pi, np.log(direction_response), color='blue')
+        plt.plot(tile.theta*180/np.pi, np.log(direction_response), color='blue', label='log of direction response')
         self.write_plot_to_file("36_direction_energies.png", tile)
-        plt.plot(tile.theta*180/np.pi, Direc_energi_2, color='green')
-        plt.plot(tile.theta*180/np.pi, Direc_energi, color='orange')
-        plt.plot(tile.theta*180/np.pi, baseline, color='red')
+        plt.plot(tile.theta*180/np.pi, Direc_energi_2, color='green', label='direction response - baseline')
+        plt.plot(tile.theta*180/np.pi, Direc_energi, color='orange', label='log of direction response - baseline')
+        plt.plot(tile.theta*180/np.pi, baseline, color='red', label='baseline')
+        plt.legend()
         self.write_plot_to_file("36_direction_energies_2.png", tile)
         plt.close()
 
