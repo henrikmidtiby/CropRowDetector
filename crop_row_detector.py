@@ -191,18 +191,23 @@ class crop_row_detector:
                  (line_ends[1][0], line_ends[1][1]), 
                  (0, 0, 255), 1)
 
+    """# This image is not saved but only used in debugging
+    def draw_detected_crop_rows_on_segmented_image(self, tile):
+        segmented_annotated = tile.gray.copy()
+        # Draw detected crop rows on the segmented image
+        origin = np.array((0, segmented_annotated.shape[1]))
+        segmented_annotated = 255 - segmented_annotated
+        for peak_idx in tile.peaks:
+            dist = tile.d[peak_idx]
+            angle = tile.direction
             temp = self.get_line_ends_within_image(dist, angle, tile.img)
             try:
-                cv2.line(tile.img, (temp[0][0], temp[0][1]), 
-                         (temp[1][0], temp[1][1]), (0, 0, 255), 1)
+                self.draw_crop_row(segmented_annotated, temp)
             except Exception as e:
                 print(e)
                 ic(temp)
-            prev_peak_dist = dist
-            tile.vegetation_lines.append(temp)
-        if tile.tile_boundry:
-            self.add_boundary_and_number_to_tile(tile)
-        self.write_image_to_file("40_detected_crop_rows.png", tile.img, tile)
+        self.segmented_annotated = segmented_annotated
+        self.write_image_to_file("45_detected_crop_rows_on_segmented_image.png", segmented_annotated, tile)"""
 
     def add_boundary_and_number_to_tile(self, tile):
         cv2.line(tile.img, (0, 0), (tile.img.shape[1]-1, 0), (0, 0, 255), 1)
