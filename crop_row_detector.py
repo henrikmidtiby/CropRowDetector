@@ -174,6 +174,23 @@ class crop_row_detector:
             tile.vegetation_lines.append(line_ends)
 
 
+    def draw_detected_crop_rows_on_input_image_and_segmented_image(self, tile):
+        for line_ends in tile.vegetation_lines:
+            try:
+                self.draw_crop_row(tile.img, line_ends)
+                self.draw_crop_row(tile.gray_inverse, line_ends)
+            except Exception as e:
+                print(e)
+                ic(line_ends)
+
+        self.write_image_to_file("40_detected_crop_rows.png", tile.img, tile)
+        self.write_image_to_file("45_detected_crop_rows_on_segmented_image.png", tile.gray_inverse, tile)
+
+    def draw_crop_row(self, image, line_ends):
+        cv2.line(image, (line_ends[0][0], line_ends[0][1]), 
+                 (line_ends[1][0], line_ends[1][1]), 
+                 (0, 0, 255), 1)
+
             temp = self.get_line_ends_within_image(dist, angle, tile.img)
             try:
                 cv2.line(tile.img, (temp[0][0], temp[0][1]), 
