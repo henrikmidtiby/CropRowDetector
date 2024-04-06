@@ -158,7 +158,7 @@ class crop_row_detector:
         self.write_plot_to_file("39_signal_with_detected_peaks.png", tile)
         plt.close()
 
-    def draw_detected_crop_rows_on_input_image(self, tile):
+    def determine_line_ends_of_crop_rows(self, tile):
         tile.vegetation_lines = []
         # Draw detected crop rows on the input image
         origin = np.array((0, tile.img.shape[1])) 
@@ -168,6 +168,11 @@ class crop_row_detector:
             angle = tile.direction
 
             self.fill_in_gaps_in_detected_crop_rows(dist, prev_peak_dist, angle, tile)
+            line_ends = self.get_line_ends_within_image(dist, angle, tile.img)
+
+            prev_peak_dist = dist
+            tile.vegetation_lines.append(line_ends)
+
 
             temp = self.get_line_ends_within_image(dist, angle, tile.img)
             try:
