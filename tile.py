@@ -30,8 +30,11 @@ class Tile:
         
         
         self.tile_number = None
+
+
         self.img = None
         self.gray = None
+        self.gray_inverse = None
 
         # Data for the crop row detecter
         # Hough transform and directions
@@ -61,8 +64,6 @@ class Tile:
  
 
     def save_tile(self):
-        #if self.original_orthomosaic is not None:
-        #    print("hej")
         if self.output_tile_location is not None:
             name_mahal_results = f'{ self.output_tile_location }/mahal{ self.tile_number:04d}.tiff'
             img_to_save = cv2.cvtColor(self.img, cv2.COLOR_BGR2RGB)
