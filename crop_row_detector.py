@@ -251,8 +251,7 @@ class crop_row_detector:
         # 1. Blur image with a uniform kernel
         # Approx distance between crop rows is 16 pixels.
         # I would prefer to have a kernel size that is not divisible by two.
-        temp = tile.gray.astype(np.uint8)
-        vegetation_map = cv2.blur(temp, (10, 10))
+        vegetation_map = cv2.blur(tile.gray.astype(np.uint8), (10, 10))
         self.write_image_to_file("60_vegetation_map.png", vegetation_map, tile)
 
         # 2. Sample pixel values along each crop row
@@ -333,29 +332,6 @@ class crop_row_detector:
         #    - vegetation coverage   
 
     
-    # This image is not saved but only used in debugging
-    def draw_detected_crop_rows_on_segmented_image(self, tile):
-        segmented_annotated = tile.gray.copy()
-        # Draw detected crop rows on the segmented image
-        origin = np.array((0, segmented_annotated.shape[1]))
-        segmented_annotated = 255 - segmented_annotated
-        for peak_idx in tile.peaks:
-            dist = tile.d[peak_idx]
-            angle = tile.direction
-            temp = self.get_line_ends_within_image(dist, angle, tile.img)
-            try:
-                self.draw_crop_row(segmented_annotated, temp)
-            except Exception as e:
-                print(e)
-                ic(temp)
-        self.segmented_annotated = segmented_annotated
-        self.write_image_to_file("45_detected_crop_rows_on_segmented_image.png", segmented_annotated, tile)
-
-    def draw_crop_row(self, segmented_annotated, temp):
-        cv2.line(segmented_annotated, 
-                            (temp[0][0], temp[0][1]), 
-                            (temp[1][0], temp[1][1]), 
-                            (0, 0, 255), 1)
 
     # Dette burde aldrig køres, da der altid burde være et segmenteret billede
     def convert_to_grayscale(self, tile):
@@ -380,6 +356,7 @@ class crop_row_detector:
                 else:
                     gray_temp[i,j] = 0
         tile.gray = gray_temp
+        tile.gray_inverse = 255 - gray_temp
 
     def load_tile_with_data_needed_for_crop_row_detection(self, tile):
         tile.generate_debug_images = self.generate_debug_images
@@ -419,9 +396,10 @@ class crop_row_detector:
         self.determine_dominant_row(tile)
         self.plot_counts_in_hough_accumulator_with_direction(tile)
         self.determine_and_plot_offsets_of_crop_rows_with_direction(tile)
-        self.draw_detected_crop_rows_on_input_image(tile)
-        if tile.generate_debug_images:
-            self.draw_detected_crop_rows_on_segmented_image(tile)
+        self.determine_line_ends_of_crop_rows(tile)
+        self.draw_detected_crop_rows_on_input_image_and_segmented_image(tile)
+        #if tile.generate_debug_images:
+            #self.draw_detected_crop_rows_on_segmented_image(tile)
         self.measure_vegetation_coverage_in_crop_row(tile)
         if tile.tile_boundry:
             self.add_boundary_and_number_to_tile(tile)
