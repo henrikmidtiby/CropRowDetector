@@ -223,6 +223,7 @@ class crop_row_detector:
                 line_ends = self.get_line_ends_within_image(prev_peak_dist, angle, tile.img)
                 tile.filler_rows.append([line_ends, len(tile.vegetation_lines), tile.tile_number])
                 tile.vegetation_lines.append(line_ends)
+
     def distance_between_two_peaks_is_larger_than_expected(self, dist, prev_peak_dist, tile):
         return dist - prev_peak_dist > 2 * tile.expected_crop_row_distance
 
@@ -232,19 +233,19 @@ class crop_row_detector:
         # x * cos(t) + y * sin(t) = r
         y0, y1 = (dist - x_val_range * np.cos(angle)) / np.sin(angle)
         x0, x1 = (dist - y_val_range * np.sin(angle)) / np.cos(angle)
-        temp = []
+        line_ends = []
         #print("y0: ", y0, "y1: ", y1, "x0: ", x0, "x1: ", x1)
         #print("y0: ", int(y0), "y1: ", int(y1), "x0: ", int(x0), "x1: ", int(x1))
         if int(y0) >= -1 and int(y0) <= img.shape[0]:
-            temp.append([0, int(y0)])
+            line_ends.append([0, int(y0)])
         if int(y1) >= -1 and int(y1) <= img.shape[0]:
-            temp.append([img.shape[0], int(y1)])
+            line_ends.append([img.shape[0], int(y1)])
         if int(x0) >= -1 and int(x0) <= img.shape[1]:
-            temp.append([int(x0), 0])
+            line_ends.append([int(x0), 0])
         if int(x1) >= -1 and int(x1) <= img.shape[1]:
-            temp.append([int(x1), img.shape[0]])
-        #print("temp: ", temp)
-        return temp     
+            line_ends.append([int(x1), img.shape[0]])
+        #print("line_ends: ", line_ends)
+        return line_ends     
 
     def measure_vegetation_coverage_in_crop_row(self, tile):
         # 1. Blur image with a uniform kernel
