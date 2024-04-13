@@ -22,9 +22,7 @@ class crop_row_detector:
         self.threshold_level = 10
         self.expected_crop_row_distance = 20
         # This class is just a crop row detctor in form of a collection of functions, 
-        # all of the information is stored in the information class Tile.
-        
-        
+        # all of the information is stored in the information class Tile. 
 
 
     def ensure_parent_directory_exist(self, path):
@@ -48,27 +46,19 @@ class crop_row_detector:
             plt.savefig(path, dpi=300)
 
     def apply_top_hat(self, h, tile):
-        # column filter with the distance between 2 rows
         filterSize = (1, int(tile.expected_crop_row_distance)) 
         kernel = cv2.getStructuringElement(cv2.MORPH_RECT,  
                                         filterSize) 
-        # Applying the Top-Hat operation 
         h = cv2.morphologyEx(h, cv2.MORPH_TOPHAT, kernel)
         return h
 
     def apply_hough_lines(self, tile):
-        # Apply the hough transform
         number_of_angles = 8*360
         tested_angles = np.linspace(-np.pi / 2, np.pi / 2, number_of_angles)
         
-        #t1 = time.time()
         #scipy's implementation er anvendt, da denne for nu er hurtigere
         #self.h, self.theta, self.d = hough_transform_grayscale.hough_line(self.gray, theta=tested_angles)
-        #t2 = time.time()
         h, tile.theta, tile.d = hough_line(tile.gray, theta=tested_angles)
-        
-        #print("Time to run hough transform: ", t2 - t1)
-        #print("Time to run hough transform: ", time.time() - t2)
         h = h.astype(np.float32)
         h = self.divide_by_max_in_array(h)
         self.write_image_to_file("33_hough_image.png", 255 * h, tile)
