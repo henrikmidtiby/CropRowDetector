@@ -210,7 +210,6 @@ class crop_row_detector:
                  (line_ends[1][0], line_ends[1][1]), 
                  (0, 0, 255), 1)
 
-
     def add_boundary_and_number_to_tile(self, tile):
         if tile.tile_boundry:
             cv2.line(tile.img, (0, 0), (tile.img.shape[1]-1, 0), (0, 0, 255), 1)
@@ -223,7 +222,7 @@ class crop_row_detector:
         if prev_peak_dist != 0:
             while self.distance_between_two_peaks_is_larger_than_expected(dist, prev_peak_dist, tile):
                 prev_peak_dist += tile.expected_crop_row_distance
-                line_ends = self.get_line_ends_within_image(prev_peak_dist, angle, tile.img)
+                line_ends = self.get_line_ends_within_image(prev_peak_dist, angle, tile.img_constant)
                 tile.filler_rows.append([line_ends, len(tile.vegetation_lines), tile.tile_number])
                 tile.vegetation_lines.append(line_ends)
 
