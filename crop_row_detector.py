@@ -269,68 +269,83 @@ class crop_row_detector:
 
         for counter, crop_row in enumerate(tile.vegetation_lines):
             try:
-                angle = tile.direction
-                # Determine sample locations along the crop row
-                start_point = (crop_row[0][0], crop_row[0][1])
-                distance_between_samples = 1
-                end_point = (crop_row[1][0], crop_row[1][1])
-                distance = np.linalg.norm(np.asarray(start_point) - np.asarray(end_point))
-                n_samples = np.ceil(distance / distance_between_samples)
+                self.find_vegetation_in_crop_row(tile, vegetation_map, missing_plants_image, df_missing_vegetation_list, counter, crop_row)
+            except Exception as e:
+                print(e)
+                traceback.print_exc()
+                print("measure_vegetation_coverage_in_crop_row: ")
+                print("tile: ", tile.tile_number)
 
-                x_close_to_end = start_point[0] + distance * np.sin(angle)
-                y_close_to_end = start_point[1] + distance * np.cos(angle) * (-1)
+
+             
+        if df_missing_vegetation_list:
+            DF_combined = pd.concat(df_missing_vegetation_list)
+        
+        if tile.generate_debug_images:
+            filename = self.get_debug_output_filepath("68_vegetation_samples.csv", tile)       
+            DF_combined.to_csv(filename)
+        self.write_image_to_file("67_missing_plants_in_crop_line.png", missing_plants_image, tile)
+
+        # 3. Export to a csv file, include the following information
+        #    - row number and offset
+        #    - pixel coordinates
+        #    - vegetation coverage  
+
+
+    def find_vegetation_in_crop_row(self, tile, vegetation_map, missing_plants_image, df_missing_vegetation_list, counter, crop_row):
+        x_sample_coords, y_sample_coords = self.calculate_x_and_y_sample_cords_along_crop_row(tile, crop_row)
                 
-                # In some cases the given angle points directly away from the end point, instead of
-                # point towards the end point from the starting point. In that case, reverse the direction.
-                if np.abs(x_close_to_end - end_point[0]) + np.abs(y_close_to_end - end_point[1]) > 5:
-                    angle = angle + np.pi
+        DF = self.create_data_structure_containing_crop_row(tile, vegetation_map, counter, x_sample_coords, y_sample_coords)
+        df_missing_vegetation_list.append(DF)
+                
+        self.plot_points_without_vegetation_on_crop_row(tile, missing_plants_image, DF)
 
-                x_sample_coords = start_point[0] + range(0, int(n_samples)) * np.sin(angle) * (1)
-                y_sample_coords = start_point[1] + range(0, int(n_samples)) * np.cos(angle) * (-1)
+    def plot_points_without_vegetation_on_crop_row(self, tile, missing_plants_image, DF):
+        threshold_vegetation = 60
+        missing_plants = DF[DF['vegetation'] < threshold_vegetation]
+        for index, location in missing_plants.iterrows():
+            cv2.circle(missing_plants_image, 
+                            (int(location['x'] - tile.size[0]*tile.tile_position[1]), 
+                             int(location['y'] - tile.size[1]*tile.tile_position[0])), 
+                            2, (255, 255, 0), -1)
 
-                vegetation_samples = cv2.remap(vegetation_map, 
+    def create_data_structure_containing_crop_row(self, tile, vegetation_map, counter, x_sample_coords, y_sample_coords):
+        vegetation_samples = cv2.remap(vegetation_map, 
                                             x_sample_coords.astype(np.float32), 
                                             y_sample_coords.astype(np.float32), 
                                             cv2.INTER_LINEAR)
 
-                DF = pd.DataFrame({'tile': tile.tile_number,
+        DF = pd.DataFrame({'tile': tile.tile_number,
                                 'row': counter, 
                                 'x': x_sample_coords + tile.size[0]*tile.tile_position[1], 
                                 'y': y_sample_coords + tile.size[1]*tile.tile_position[0], 
                                 'vegetation': vegetation_samples.transpose()[0]})
-                df_missing_vegetation_list.append(DF)
+                        
+        return DF
+
+
+    def calculate_x_and_y_sample_cords_along_crop_row(self, tile, crop_row):
+        angle = tile.direction
+                # Determine sample locations along the crop row
+        start_point = (crop_row[0][0], crop_row[0][1])
                 
+        end_point = (crop_row[1][0], crop_row[1][1])
+        distance = np.linalg.norm(np.asarray(start_point) - np.asarray(end_point))
+                
+        distance_between_samples = 1
+        n_samples = np.ceil(0.0001 + distance / distance_between_samples)
+        assert n_samples > 0, "n_samples is less than 0"
 
-                threshold_vegetation = 60
-                missing_plants = DF[DF['vegetation'] < threshold_vegetation]
-                for index, location in missing_plants.iterrows():
-                    cv2.circle(missing_plants_image, 
-                            (int(location['x'] - tile.size[0]*tile.tile_position[1]), 
-                             int(location['y'] - tile.size[1]*tile.tile_position[0])), 
-                            2, 
-                            (255, 255, 0), 
-                            -1)
-            except Exception as e:
-                print(e)
-        
-        #print("df_missing_vegetation_list: ", df_missing_vegetation_list)
+        x_close_to_end = start_point[0] + distance * np.sin(angle)
+        y_close_to_end = start_point[1] + distance * np.cos(angle) * (-1)
+                
+        # In some cases the given angle points directly away from the end point, instead of
+        # point towards the end point from the starting point. In that case, reverse the direction.
+        if np.abs(x_close_to_end - end_point[0]) + np.abs(y_close_to_end - end_point[1]) > 5:
+            angle = angle + np.pi
 
-        #filename = self.date_time + "/" + "64_vegetation_samples.csv"
-        filename = tile.output_tile_location + "/debug_images/" + f'{tile.tile_number}' + "/" + "68_vegetation_samples.csv"
-        if df_missing_vegetation_list:
-            #print("df_missing_vegetation_list: ", df_missing_vegetation_list)
-            DF_combined = pd.concat(df_missing_vegetation_list)
-            
-        #print("Df: ", DF_combined, "\n\n")
-        #print("Df: ", DF_combined.shape, "\n\n")
-        DF_combined.to_csv(filename)
-        self.write_image_to_file("67_missing_plants_in_crop_line.png", missing_plants_image, tile)
-    
-        # 3. Export to a csv file, include the following information
-        #    - row number and offset
-        #    - pixel coordinates
-        #    - vegetation coverage   
-
+        x_sample_coords = start_point[0] + range(0, int(n_samples)) * np.sin(angle) * (1)
+        y_sample_coords = start_point[1] + range(0, int(n_samples)) * np.cos(angle) * (-1)
     
 
     # Dette burde aldrig køres, da der altid burde være et segmenteret billede
