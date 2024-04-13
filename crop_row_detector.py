@@ -1,22 +1,18 @@
 import cv2
 import numpy as np
 import pandas as pd
-from path import Path
 import matplotlib.pyplot as plt
-from scipy.signal import find_peaks
-import argparse
-from icecream import ic
-from pybaselines import Baseline
-
-#import hough_transform_grayscale
-from skimage.transform import hough_line
-
 import time
-from tile_separator import tile_separator
 import concurrent.futures
 
-from tqdm import tqdm
+#import hough_transform_grayscale # This is a custom implementation of the hough transform
+from skimage.transform import hough_line
+from scipy.signal import find_peaks
+from pybaselines import Baseline
+from path import Path
+from icecream import ic
 
+import traceback
 
 
 class crop_row_detector:
