@@ -145,20 +145,30 @@ class crop_row_detector:
                  color=color, label=label)
         plt.axvline(x=tile.theta[np.argmax(direction_response)]*180/np.pi, 
                     color=color, linestyle='dashed')
+
+    
+    def determine_offsets_of_crop_rows(self, tile):
+        tile.signal = tile.h[:, tile.direction_with_most_energy_idx]
+        tile.peaks, _ = find_peaks(tile.signal, 
+                                   distance=tile.expected_crop_row_distance / 2, 
+                                   prominence=0.01)
+        self.plot_row_offset(tile)
+        self.plot_row_offset_with_peaks(tile)
+    
+    
+    def plot_row_offset(self, tile):
+        plt.figure(figsize=(16, 9))
+        plt.plot(tile.signal, color='blue')
         self.write_plot_to_file("38_row_offsets.png", tile)
         plt.close()
 
-    def determine_and_plot_offsets_of_crop_rows_with_direction(self, tile):
-        signal = tile.h[:, tile.direction_with_most_energy_idx]
 
-        
-        peaks, _ = find_peaks(signal, distance=tile.expected_crop_row_distance / 2)
-        tile.peaks = peaks
+    def plot_row_offset_with_peaks(self, tile):
         plt.figure(figsize=(16, 9))
-        plt.plot(signal)
-        plt.plot(peaks, signal[peaks], "x")
-        plt.plot(np.zeros_like(signal), "--", color="gray")
-        self.write_plot_to_file("39_signal_with_detected_peaks.png", tile)
+        plt.plot(tile.signal)
+        plt.plot(tile.peaks, tile.signal[tile.peaks], "x")
+        plt.plot(np.zeros_like(tile.signal), "--", color="gray")
+        self.write_plot_to_file("39_row_offsets_with_detected_peaks.png", tile)
         plt.close()
 
     def determine_line_ends_of_crop_rows(self, tile):
