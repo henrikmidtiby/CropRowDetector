@@ -3,31 +3,12 @@ import cv2
 import numpy as np
 import rasterio
 from rasterio.windows import Window
-from rasterio.transform import Affine
 import os
-import time
 
 from tile import Tile
 
 
-def rasterio_opencv2(image):
-    if image.shape[0] >= 3:  # might include alpha channel
-        false_color_img = image.transpose(1, 2, 0)
-        separate_colors = cv2.split(false_color_img)
-        return cv2.merge([separate_colors[2],
-                          separate_colors[1],
-                          separate_colors[0]])
-    else:
-        return image
-
-def read_tile(orthomosaic, tile):
-    with rasterio.open(orthomosaic) as src:
-        window = Window.from_slices((tile.ulc[0], tile.lrc[0]),
-                                    (tile.ulc[1], tile.lrc[1]))
-        im = src.read(window=window)
-    return rasterio_opencv2(im)
-
-class tile_separator:
+class convert_orthomosaic_to_list_of_tiles:
     def __init__(self):
         self.tile_size = 3000
         self.run_specific_tile = None
@@ -42,43 +23,52 @@ class tile_separator:
         self.filename_orthomosaic = None
 
 
-    def main(self, filename_segmented_orthomosaic):
+    def rasterio_opencv2(self, image):
+        if image.shape[0] >= 3:  # might include alpha channel
+            false_color_img = image.transpose(1, 2, 0)
+            separate_colors = cv2.split(false_color_img)
+            return cv2.merge([separate_colors[2],
+                            separate_colors[1],
+                            separate_colors[0]])
+        else:
+            return image
+
+
+    def read_tile(self, orthomosaic, tile):
+        with rasterio.open(orthomosaic) as src:
+            window = Window.from_slices((tile.ulc[0], tile.lrc[0]),
+                                        (tile.ulc[1], tile.lrc[1]))
+            im = src.read(window=window)
+        return self.rasterio_opencv2(im)
+
+
+    def main(self, filename_orthomosaic):
+        self.filename_orthomosaic = filename_orthomosaic
         output_directory = os.path.dirname(self.output_tile_location)
         if not os.path.isdir(output_directory):
             os.makedirs(output_directory)
-        self.divide_orthomosaic_into_tiles(filename_segmented_orthomosaic)
+        self.divide_orthomosaic_into_tiles()
         return self.specified_tiles
 
-    def divide_orthomosaic_into_tiles(self, filename_segmented_orthomosaic):
-        with rasterio.open(filename_segmented_orthomosaic) as src:
+
+    def divide_orthomosaic_into_tiles(self):
+        with rasterio.open(self.filename_orthomosaic) as src:
             self.resolution = src.res
             self.crs = src.crs
             self.left = src.bounds[0]
             self.top = src.bounds[3]
 
-        processing_tiles = self.get_processing_tiles(filename_segmented_orthomosaic,
-                                                     self.tile_size)
-        if self.filename_orthomosaic is not None:
-            tiles_plot = self.get_processing_tiles(self.filename_orthomosaic,
-                                                     self.tile_size)
+        processing_tiles = self.get_processing_tiles(self.tile_size)
 
         specified_processing_tiles = self.get_list_of_specified_tiles(processing_tiles)
         
         
         for tile in specified_processing_tiles:
-            # Run the initialized crop row detector on the tile
-            if self.filename_orthomosaic is not None:
-                original_orthomosaic = read_tile(self.filename_orthomosaic, tiles_plot[tile.tile_number])
-            else:
-                original_orthomosaic = None
-            segmented_img = read_tile(filename_segmented_orthomosaic, tile)
-            tile.original_orthomosaic = original_orthomosaic
-            tile.segmented_img = segmented_img
+            tile.img = self.read_tile(self.filename_orthomosaic, tile)
 
-            #self.process_tile(segmented_img, original_orthomosaic, crd, tile)
         self.specified_tiles = specified_processing_tiles
 
-    # with the given command line arguments, this function will return a list of tiles that should be processed
+
     def get_list_of_specified_tiles(self, tile_list):
         specified_tiles = []
         for tile_number, tile in enumerate(tile_list):
@@ -95,7 +85,7 @@ class tile_separator:
         return specified_tiles
 
 
-    def get_processing_tiles(self, filename_segmented_orthomosaic, tile_size):
+    def get_processing_tiles(self, tile_size):
         """
         Generate a list of tiles to process, including a padding region around
         the actual tile.
@@ -103,7 +93,7 @@ class tile_separator:
         all directions.
         """
         processing_tiles, st_width, st_height = self.define_tiles(
-            filename_segmented_orthomosaic, 0.01, tile_size, tile_size)
+            0.01, tile_size, tile_size)
 
         no_r = np.max([t.tile_position[0] for t in processing_tiles])
         no_c = np.max([t.tile_position[1] for t in processing_tiles])
@@ -127,13 +117,14 @@ class tile_separator:
 
         return processing_tiles
     
-    def define_tiles(self, filename_segmented_orthomosaic, overlap, height, width):
+    
+    def define_tiles(self, overlap, height, width):
         """
         Given a path to an orthomosaic, create a list of tiles which covers the
         orthomosaic with a specified overlap, height and width.
         """
 
-        with rasterio.open(filename_segmented_orthomosaic) as src:
+        with rasterio.open(self.filename_orthomosaic) as src:
             columns = src.width
             rows = src.height
             resolution = src.res
@@ -165,44 +156,3 @@ class tile_separator:
                                   resolution, crs, left, top))
 
         return tiles, step_width, step_height
-
-    """def process_tile(self, segmented_img, original_orthomosaic, crd, tile):
-        
-        width = tile.size[1]
-        height = tile.size[0]
-        
-
-        crd.main(tile)
-
-
-        # save results
-        tile.ulc_global = [
-                self.top - (tile.ulc[0] * self.resolution[0]), 
-                self.left + (tile.ulc[1] * self.resolution[1])]
-        transform = Affine.translation(
-            tile.ulc_global[1] + self.resolution[0] / 2,
-            tile.ulc_global[0] - self.resolution[0] / 2) * \
-            Affine.scale(self.resolution[0], -self.resolution[0])
-
-        # optional save of results - just lob detection and thresholding result
-        #self.save_results(tile.img, tile.tile_number,
-        #                  self.resolution, height, width, self.crs, transform)
-
-    def save_results(self, img, tile_number, res, height, width, crs, transform):
-        if self.output_tile_location is not None:
-            name_mahal_results = f'{ self.output_tile_location }/mahal{ tile_number:04d}.tiff'
-            img_to_save = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
-            channels = img_to_save.shape[2]
-            temp_to_save = img_to_save.transpose(2, 0, 1) 
-            new_dataset = rasterio.open(name_mahal_results,
-                                        'w',
-                                        driver='GTiff',
-                                        res=res,
-                                        height=height,
-                                        width=width,
-                                        count=channels,
-                                        dtype=temp_to_save.dtype,
-                                        crs=crs,
-                                        transform=transform)
-            new_dataset.write(temp_to_save)
-            new_dataset.close()"""
