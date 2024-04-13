@@ -173,19 +173,24 @@ class crop_row_detector:
 
     def determine_line_ends_of_crop_rows(self, tile):
         tile.vegetation_lines = []
-        # Draw detected crop rows on the input image
-        origin = np.array((0, tile.img.shape[1])) 
         prev_peak_dist = 0
+
         for peak_idx in tile.peaks:
             dist = tile.d[peak_idx]
+            
             angle = tile.direction
 
             self.fill_in_gaps_in_detected_crop_rows(dist, prev_peak_dist, angle, tile)
-            line_ends = self.get_line_ends_within_image(dist, angle, tile.img)
+            line_ends = self.get_line_ends_within_image(dist, angle, tile.img_constant)
 
             prev_peak_dist = dist
             tile.vegetation_lines.append(line_ends)
 
+        vegetation_lines = []
+        for line_ends in tile.vegetation_lines:
+            if len(line_ends) == 2:
+                vegetation_lines.append(line_ends)
+        tile.vegetation_lines = vegetation_lines
 
     def draw_detected_crop_rows_on_input_image_and_segmented_image(self, tile):
         for line_ends in tile.vegetation_lines:
