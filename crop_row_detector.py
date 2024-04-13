@@ -362,8 +362,26 @@ class crop_row_detector:
         tile.generate_debug_images = self.generate_debug_images
         tile.tile_boundry = self.tile_boundry
         tile.threshold_level = self.threshold_level
+        # In gimp I have measured the crop row distance to be around 20 px.
+        # however I get the best results when this value is set to 30.
         tile.expected_crop_row_distance = self.expected_crop_row_distance
 
+        tile.gray = None
+        tile.gray_inverse = None
+
+        # Data for the crop row detecter
+        # Hough transform and directions
+        tile.h = None
+        tile.theta = None
+        tile.d = None
+        tile.direction_with_most_energy_idx = None
+        tile.direction = None
+        tile.peaks = None
+
+        # Save the endpoints of the detected crop rows
+        tile.vegetation_lines = []
+        # List containing the lacking rows
+        tile.filler_rows = []
 
     def main(self, tiles):
         

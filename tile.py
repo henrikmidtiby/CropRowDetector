@@ -27,40 +27,10 @@ class Tile:
             self.ulc_global[0] - self.resolution[0] / 2) * \
             Affine.scale(self.resolution[0], -self.resolution[0])
 
-        
-        
         self.tile_number = None
-
-
-        self.img = None
-        self.gray = None
-        self.gray_inverse = None
-
-        # Data for the crop row detecter
-        # Hough transform and directions
-        self.h = None
-        self.theta = None
-        self.d = None
-        self.direction_with_most_energy_idx = None
-        self.direction = None
-        self.peaks = None
-        
-
-        self.vegetation = []
-        # Save the endpoints of the detected crop rows
-        self.vegetation_lines = []
-        # List containing the lacking rows
-        self.filler_rows = []
-
-        self.threshold_level = 10
-        self.generate_debug_images = None
-        self.tile_boundry = None
-
         self.output_tile_location = None
 
-        # In gimp I have measured the crop row distance to be around 20 px.
-        # however I get the best results when this value is set to 30.
-        self.expected_crop_row_distance = 20 # 30
+        self.img = None
  
 
     def save_tile(self):
