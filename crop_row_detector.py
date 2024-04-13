@@ -385,110 +385,46 @@ class crop_row_detector:
         # List containing the lacking rows
         tile.filler_rows = []
 
-    def main(self, tiles):
+    def combine_segmented_and_original_tile(self, tile_segmented, tile_plot):
+        assert tile_segmented.img.shape[0] == 1, "The segmented image has more then one color chanal."
+        assert tile_plot.ulc == tile_segmented.ulc, "The two tiles are not the same location."
         
-        for tile in tiles:
-            self.load_tile_with_data_needed_for_crop_row_detection(tile)
+        tile_segmented.segmented_img = tile_segmented.img.reshape(tile_segmented.img.shape[1], tile_segmented.img.shape[2]).copy()
+        
+        if tile_plot.img.shape[0] == 1:
+            tile_plot.img = tile_plot.img.reshape(tile_plot.img.shape[1], tile_plot.img.shape[2]).copy()
+        tile_segmented.img = tile_plot.img.copy()
+        tile_segmented.img_constant = tile_plot.img.copy()
 
+
+    def main(self, tiles_segmented, tiles_plot):
+
+        for list_iter, tile in enumerate(tiles_segmented):
+            self.load_tile_with_data_needed_for_crop_row_detection(tile)
+            self.combine_segmented_and_original_tile(tile, tiles_plot[list_iter])
+            
         start = time.time()
         with concurrent.futures.ProcessPoolExecutor() as executor:
-            executor.map(self.detect_crop_rows, tiles)
-        
-        #for tile in tqdm(tiles):
-        #    self.detect_crop_rows(tile)
-
+            executor.map(self.detect_crop_rows, tiles_segmented)
         print("Time to run all tiles: ", time.time() - start)
 
     def detect_crop_rows(self, tile):
-        # run row detection on tile
-        if tile.segmented_img.shape[0] == 1:
-            tile.gray = tile.segmented_img.reshape(tile.segmented_img.shape[1], tile.segmented_img.shape[2])
-            if tile.original_orthomosaic is not None:
-                tile.img = tile.original_orthomosaic
-            else: 
-                tile.img = tile.segmented_img.reshape(tile.segmented_img.shape[1], tile.segmented_img.shape[2]).copy()
-            self.gray_reduce(tile)
-        else:
-            tile.img = tile.segmented_img
-            self.convert_to_grayscale(tile)
-        
-        self.apply_hough_lines(tile)
-        self.determine_dominant_row(tile)
-        self.plot_counts_in_hough_accumulator_with_direction(tile)
-        self.determine_and_plot_offsets_of_crop_rows_with_direction(tile)
-        self.determine_line_ends_of_crop_rows(tile)
-        self.draw_detected_crop_rows_on_input_image_and_segmented_image(tile)
-        #if tile.generate_debug_images:
-            #self.draw_detected_crop_rows_on_segmented_image(tile)
-        self.measure_vegetation_coverage_in_crop_row(tile)
-        if tile.tile_boundry:
+        t1 = time.time()
+        try:
+            self.convert_segmented_image_to_binary(tile)
+            self.apply_hough_lines(tile)
+            self.determine_dominant_direction(tile)
+            self.determine_offsets_of_crop_rows(tile)
+            self.determine_line_ends_of_crop_rows(tile)
+            self.draw_detected_crop_rows_on_input_image_and_segmented_image(tile)
+            self.measure_vegetation_coverage_in_crop_row(tile)
             self.add_boundary_and_number_to_tile(tile)
-        tile.save_tile()
+            tile.save_tile()
+            print(f"Time to run tile: ", time.time() - t1)
+        except Exception as e:
+            ic(e)
+        
+        
 
-
-
-
-parser = argparse.ArgumentParser(description = "Detect crop rows in segmented image")
-parser.add_argument('segmented_orthomosaic', 
-                    help='Path to the segmented_orthomosaic that you want to process.')
-parser.add_argument('--orthomosaic',
-                    help='Path to the orthomosaic that you want to plot on. '
-                    'if not set, the segmented_orthomosaic will be used.')
-parser.add_argument('--tile_size',
-                    default=3000,
-                    type = int,
-                    help='The height and width of tiles that are analyzed. '
-                         'Default is 3000.')
-parser.add_argument('--output_tile_location', 
-                    default='output/mahal',
-                    help='The location in which to save the mahalanobis tiles.')
-parser.add_argument('--generate_debug_images', 
-                    default = False,
-                    type = bool, 
-                    help = "If set to true, debug images will be generated, defualt is False")
-parser.add_argument('--tile_boundry',
-                    default = False,
-                    type = bool,
-                    help='if set to true will plot a boundry on each tile ' 
-                    'and the tile number on the tile, is default False.')
-parser.add_argument('--run_specific_tile',
-                    nargs='+',
-                    type=int,
-                    help='If set, only run the specific tile numbers. '
-                    '(--run_specific_tile 16 65) will run tile 16 and 65.')
-parser.add_argument('--run_specific_tileset',
-                    nargs='+',
-                    type=int,
-                    help='takes to inputs like (--from_specific_tile 16 65). '
-                    'this will run every tile from 16 to 65.')
-parser.add_argument('--expected_crop_row_distance',
-                    default=20,
-                    type=int,
-                    help='The expected distance between crop rows in pixels, default is 20.')
-args = parser.parse_args()
-
-# Initialize the tile separator
-tsr = tile_separator()
-tsr.run_specific_tile = args.run_specific_tile
-tsr.run_specific_tileset = args.run_specific_tileset
-tsr.tile_size = args.tile_size
-tsr.output_tile_location = args.output_tile_location
-tsr.filename_orthomosaic = args.orthomosaic
-tile_list = tsr.main(args.segmented_orthomosaic)
-
-
-# Initialize the crop row detector
-crd = crop_row_detector()
-crd.generate_debug_images = args.generate_debug_images
-crd.tile_boundry = args.tile_boundry
-crd.expected_crop_row_distance = args.expected_crop_row_distance
-crd.threshold_level = 12
-crd.main(tile_list)
-
-
-
-
-# python3 crop_row_detector.py rødsvingel/rødsvingel.tif --orthomosaic rødsvingel/input_data/2023-04-03_Rødsvingel_1._års_Wagner_JSJ_2_ORTHO.tif --output_tile_location rødsvingel/tiles_crd --tile_size 500 --tile_boundry True --generate_debug_images True --run_specific_tile 16
-# gdal_merge.py -o rødsvingel/rødsvingel_crd.tif -a_nodata 255 rødsvingel/tiles_crd/mahal*.tiff
 
 
