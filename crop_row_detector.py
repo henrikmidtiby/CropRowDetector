@@ -81,7 +81,9 @@ class crop_row_detector:
 
         self.write_image_to_file("35_hough_image_tophat.png", 255 * h, tile)
 
-    def divide_by_max_in_array(self, arr):
+    
+
+    def normalize_array(self, arr):
         max = cv2.minMaxLoc(arr)[1]
         if max > 0:
             arr = arr/max
