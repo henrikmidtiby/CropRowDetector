@@ -212,11 +212,12 @@ class crop_row_detector:
 
 
     def add_boundary_and_number_to_tile(self, tile):
-        cv2.line(tile.img, (0, 0), (tile.img.shape[1]-1, 0), (0, 0, 255), 1)
-        cv2.line(tile.img, (0, tile.img.shape[0]-1), (tile.img.shape[1]-1, tile.img.shape[0]-1), (0, 0, 255), 1)
-        cv2.line(tile.img, (0, 0), (0, tile.img.shape[0]-1), (0, 0, 255), 1)
-        cv2.line(tile.img, (tile.img.shape[1]-1, 0), (tile.img.shape[1]-1, tile.img.shape[0]-1), (0, 0, 255), 1)
-        cv2.putText(tile.img, f'{tile.tile_number}', (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 255), 2, cv2.LINE_AA)
+        if tile.tile_boundry:
+            cv2.line(tile.img, (0, 0), (tile.img.shape[1]-1, 0), (0, 0, 255), 1)
+            cv2.line(tile.img, (0, tile.img.shape[0]-1), (tile.img.shape[1]-1, tile.img.shape[0]-1), (0, 0, 255), 1)
+            cv2.line(tile.img, (0, 0), (0, tile.img.shape[0]-1), (0, 0, 255), 1)
+            cv2.line(tile.img, (tile.img.shape[1]-1, 0), (tile.img.shape[1]-1, tile.img.shape[0]-1), (0, 0, 255), 1)
+            cv2.putText(tile.img, f'{tile.tile_number}', (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 255), 2, cv2.LINE_AA)
 
     def fill_in_gaps_in_detected_crop_rows(self, dist, prev_peak_dist, angle, tile):
         if prev_peak_dist != 0:
