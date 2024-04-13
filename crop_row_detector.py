@@ -93,49 +93,58 @@ class crop_row_detector:
             arr = arr + 10e-10
         return arr
 
-    def determine_dominant_row(self, tile):
-        # Determine the dominant row direction
-        direction_response = np.sum(np.square(tile.h), axis=0)
+    def determine_dominant_direction(self, tile):
         baseline_fitter = Baseline(tile.theta*180/np.pi, check_finite=False)
 
+        # There are 4 different ways to determine the dominant row, as seen below.
+        tile.direction_response = np.sum(np.square(tile.h), axis=0)
+        tile.log_direc = np.log(tile.direction_response)
+        tile.log_direc_baseline = np.log(tile.direction_response) - baseline_fitter.mor(np.log(tile.direction_response), half_window=30)[0]
+        tile.direc_baseline = tile.direction_response - baseline_fitter.mor(tile.direction_response, half_window=30)[0]
         
-        # Normalize the direction response
-        Direc_energi = np.log(direction_response) - baseline_fitter.mor(np.log(direction_response), half_window=30)[0]
-        Direc_energi_2 = direction_response - baseline_fitter.mor(direction_response, half_window=30)[0]
-        baseline = baseline_fitter.mor(direction_response, half_window=30)[0]
-        max = np.max(Direc_energi)
 
-
-        # the direction with the most energi is dicided from sum of the squrare of the hough transform
-        # it is possible to subtrack the baseline, but this does not always provide a better result.
-        tile.direction_with_most_energy_idx = np.argmax(baseline)
+        tile.direction_with_most_energy_idx = np.argmax(tile.direc_baseline)
         tile.direction = tile.theta[tile.direction_with_most_energy_idx]
         
-        # Plot the direction response and normalized direction response
-        plt.figure(figsize=(16, 9))
-        plt.plot(tile.theta*180/np.pi, np.log(direction_response), color='blue', label='log of direction response')
-        self.write_plot_to_file("36_direction_energies.png", tile)
-        plt.plot(tile.theta*180/np.pi, Direc_energi_2, color='green', label='direction response - baseline')
-        plt.plot(tile.theta*180/np.pi, Direc_energi, color='orange', label='log of direction response - baseline')
-        plt.plot(tile.theta*180/np.pi, baseline, color='red', label='baseline')
-        plt.legend()
-        self.write_plot_to_file("36_direction_energies_2.png", tile)
-        plt.close()
+        
+        self.plot_direction_energies(tile)
+        
 
+        """
+        # Plot the direction response and normalized direction response
+        max = np.max(log_direc_baseline)
         plt.figure(figsize=(16, 9))
         plt.plot(tile.theta*180/np.pi, 
-                 Direc_energi, 
+                 log_direc_baseline, 
                  color='orange')
         if max != 0:
             plt.plot(tile.theta*180/np.pi, 
-                     Direc_energi/max,
+                     log_direc_baseline/max,
                      color='blue')
         self.write_plot_to_file("37_direction_energies_normalized.png", tile)
         plt.close()
+        """
+        
 
-    def plot_counts_in_hough_accumulator_with_direction(self, tile):
+    def plot_direction_energies(self, tile):
         plt.figure(figsize=(16, 9))
-        plt.plot(tile.h[:, tile.direction_with_most_energy_idx])
+        self.plot_direction_response_and_maximum(tile, tile.log_direc, 
+                                                 'blue', 'log of direction response')
+        self.plot_direction_response_and_maximum(tile, tile.direc_baseline, 
+                                                 'green', 'direction response - baseline')
+        self.plot_direction_response_and_maximum(tile, tile.log_direc_baseline, 
+                                                 'orange', 'log of direction response - baseline')
+        self.plot_direction_response_and_maximum(tile, tile.direction_response, 
+                                                 'red', 'direction response')
+        plt.legend()
+        self.write_plot_to_file("36_direction_energies.png", tile)
+        plt.close()
+
+    def plot_direction_response_and_maximum(self, tile, direction_response, color, label):
+        plt.plot(tile.theta*180/np.pi, direction_response, 
+                 color=color, label=label)
+        plt.axvline(x=tile.theta[np.argmax(direction_response)]*180/np.pi, 
+                    color=color, linestyle='dashed')
         self.write_plot_to_file("38_row_offsets.png", tile)
         plt.close()
 
