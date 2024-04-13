@@ -346,32 +346,19 @@ class crop_row_detector:
 
         x_sample_coords = start_point[0] + range(0, int(n_samples)) * np.sin(angle) * (1)
         y_sample_coords = start_point[1] + range(0, int(n_samples)) * np.cos(angle) * (-1)
+        return x_sample_coords, y_sample_coords
     
 
-    # Dette burde aldrig køres, da der altid burde være et segmenteret billede
-    def convert_to_grayscale(self, tile):
-        HSV = cv2.cvtColor(self.img, cv2.COLOR_BGR2HSV)
-        HSV_gray = HSV[:,:,2].copy()
-        #self.write_image_to_file("02_hsv.png", HSV_gray)
-        for i in range(0, HSV_gray.shape[0]):
-            for j in range(0, HSV_gray.shape[1]):
-                if HSV[i,j,0] > 45 and HSV[i,j,0] < 65:
-                    HSV_gray[i,j] = 255-HSV_gray[i,j]
+    def convert_segmented_image_to_binary(self, tile):
+        binary = tile.segmented_img.copy()
+        for i in range(0, binary.shape[0]):
+            for j in range(0, binary.shape[1]):
+                if binary[i,j] < tile.threshold_level:
+                    binary[i,j] = 255
                 else:
-                    HSV_gray[i,j] = 0
-        #self.write_image_to_file("03_hsv.png", HSV_gray)
-        tile.gray = HSV_gray
-
-    def gray_reduce(self, tile):
-        gray_temp = tile.gray.copy()
-        for i in range(0, gray_temp.shape[0]):
-            for j in range(0, gray_temp.shape[1]):
-                if gray_temp[i,j] < tile.threshold_level:
-                    gray_temp[i,j] = 255
-                else:
-                    gray_temp[i,j] = 0
-        tile.gray = gray_temp
-        tile.gray_inverse = 255 - gray_temp
+                    binary[i,j] = 0
+        tile.gray = binary
+        tile.gray_inverse = 255 - binary
 
     def load_tile_with_data_needed_for_crop_row_detection(self, tile):
         tile.generate_debug_images = self.generate_debug_images
