@@ -51,6 +51,12 @@ class crop_row_detector:
                                         filterSize) 
         h = cv2.morphologyEx(h, cv2.MORPH_TOPHAT, kernel)
         return h
+    
+    def blur_image(self, h):
+        # Blur image using a 5 x 1 average filter
+        kernel = np.ones((5,1), np.float32) / 5
+        h = cv2.filter2D(h, -1, kernel)
+        return h
 
     def apply_hough_lines(self, tile):
         number_of_angles = 8*360
@@ -60,18 +66,18 @@ class crop_row_detector:
         #self.h, self.theta, self.d = hough_transform_grayscale.hough_line(self.gray, theta=tested_angles)
         h, tile.theta, tile.d = hough_line(tile.gray, theta=tested_angles)
         h = h.astype(np.float32)
-        h = self.divide_by_max_in_array(h)
+
+        h = self.normalize_array(h)
         self.write_image_to_file("33_hough_image.png", 255 * h, tile)
 
-        # Blur image using a 5 x 1 average filter
-        kernel = np.ones((5,1), np.float32) / 5
-        h = cv2.filter2D(h, -1, kernel)
-        h = self.divide_by_max_in_array(h)
+        
+        h = self.blur_image(h)
+        h = self.normalize_array(h)
         self.write_image_to_file("34_hough_image_blurred.png", 255 * h, tile)
 
         h = self.apply_top_hat(h, tile)
         
-        tile.h = self.divide_by_max_in_array(h)
+        tile.h = self.normalize_array(h)
 
         self.write_image_to_file("35_hough_image_tophat.png", 255 * h, tile)
 
