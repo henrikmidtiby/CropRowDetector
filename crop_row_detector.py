@@ -9,7 +9,7 @@ import concurrent.futures
 from skimage.transform import hough_line
 from scipy.signal import find_peaks
 from pybaselines import Baseline
-from path import Path
+from pathlib import Path
 from icecream import ic
 
 import traceback
@@ -28,7 +28,7 @@ class crop_row_detector:
     def ensure_parent_directory_exist(self, path):
         temp_path = Path(path).parent
         if not temp_path.exists():
-            temp_path.mkdir()
+            temp_path.mkdir(parents = True)
 
     def get_debug_output_filepath(self, output_path, tile):
         return tile.output_tile_location + "/debug_images/" + f'{tile.tile_number}' + "/" + output_path
