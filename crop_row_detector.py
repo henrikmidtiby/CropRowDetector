@@ -264,14 +264,18 @@ class crop_row_detector:
         y0, y1 = (dist - x_val_range * np.cos(angle)) / np.sin(angle)
         x0, x1 = (dist - y_val_range * np.sin(angle)) / np.cos(angle)
         line_ends = []
+        if int(y0) >= 0 and int(y0) <= img.shape[0]:
+            line_ends.append([0, int(y0)])
         if int(x0) >= 0 and int(x0) <= img.shape[1]:
             line_ends.append([int(x0), 0])
         if int(x1) >= 0 and int(x1) <= img.shape[1]:
             line_ends.append([int(x1), img.shape[0]])
-        if int(y0) >= 0 and int(y0) <= img.shape[0]:
-            line_ends.append([0, int(y0)])
         if int(y1) >= 0 and int(y1) <= img.shape[0]:
             line_ends.append([img.shape[0], int(y1)])
+        
+        if line_ends[0][0] > line_ends[1][0]:
+            line_ends = [line_ends[1], line_ends[0]]
+        
         return line_ends     
 
     def measure_vegetation_coverage_in_crop_row(self, tile):
@@ -454,10 +458,18 @@ class crop_row_detector:
         
 
         start = time.time()
-        with concurrent.futures.ProcessPoolExecutor() as executor:
-            result = executor.map(self.detect_crop_rows, tiles_segmented)
+        total_results = []
+        if len(tiles_segmented) > 20:
+            for i in range(0, int(len(tiles_segmented)/20)+1):
+                with concurrent.futures.ProcessPoolExecutor() as executor:
+                    result = executor.map(self.detect_crop_rows, tiles_segmented[i*20:i*20+20])
+                for res in result:
+                    total_results.append(res)
+        else:
+            with concurrent.futures.ProcessPoolExecutor() as executor:
+                total_results = executor.map(self.detect_crop_rows, tiles_segmented)
         print("Time to run all tiles: ", time.time() - start)
-        tiles_segmented = list(result)
+        tiles_segmented = list(total_results)
 
         self.create_csv_of_row_information(tiles_segmented)
 
