@@ -12,7 +12,36 @@ from pybaselines import Baseline
 from path import Path
 from icecream import ic
 
+
+import statistics
 import traceback
+
+def rSVD(X, r, q, p):
+    U, S, VT = np.linalg.svd(X, full_matrices=False)
+    #cutoff = 2.858 * statistics.median((255 - X).flatten())
+    #r = np.max(np.where(S > cutoff))
+    #print("cutoff: ", cutoff)
+    #print("r: ", r)
+    
+    
+    # step 1: Sample column space of X with P matrix
+    ny = X.shape[1]
+    P = np.random.randn(ny, r+p)
+    Z = X @ P
+    for k in range(q):
+        Z = X @ (X.T @ Z)
+    
+    Q, _ = np.linalg.qr(Z, mode='reduced')
+
+    # step 2: Compute the reduced SVD of Q.T @ X
+    Y = Q.T @ X
+    UY, S, VT = np.linalg.svd(Y, full_matrices=False)
+    U = Q @ UY
+    return U, S, VT, r
+
+def reconstruct(U, S, VT, r):
+    return U[:,:(r+1)] @ np.diag(S[:(r+1)]) @ VT[:(r+1),:]
+
 
 
 class crop_row_detector:
@@ -82,7 +111,6 @@ class crop_row_detector:
         self.write_image_to_file("35_hough_image_tophat.png", 255 * h, tile)
 
     
-
     def normalize_array(self, arr):
         max = cv2.minMaxLoc(arr)[1]
         if max > 0:
@@ -236,14 +264,14 @@ class crop_row_detector:
         y0, y1 = (dist - x_val_range * np.cos(angle)) / np.sin(angle)
         x0, x1 = (dist - y_val_range * np.sin(angle)) / np.cos(angle)
         line_ends = []
-        if int(y0) >= 0 and int(y0) <= img.shape[0]:
-            line_ends.append([0, int(y0)])
-        if int(y1) >= 0 and int(y1) <= img.shape[0]:
-            line_ends.append([img.shape[0], int(y1)])
         if int(x0) >= 0 and int(x0) <= img.shape[1]:
             line_ends.append([int(x0), 0])
         if int(x1) >= 0 and int(x1) <= img.shape[1]:
             line_ends.append([int(x1), img.shape[0]])
+        if int(y0) >= 0 and int(y0) <= img.shape[0]:
+            line_ends.append([0, int(y0)])
+        if int(y1) >= 0 and int(y1) <= img.shape[0]:
+            line_ends.append([img.shape[0], int(y1)])
         return line_ends     
 
     def measure_vegetation_coverage_in_crop_row(self, tile):
@@ -401,11 +429,37 @@ class crop_row_detector:
         for list_iter, tile in enumerate(tiles_segmented):
             self.load_tile_with_data_needed_for_crop_row_detection(tile)
             self.combine_segmented_and_original_tile(tile, tiles_plot[list_iter])
-            
+
+        """for tile in tiles_segmented:
+            r = 10
+            q = 1
+            p = 1
+            self.write_image_to_file("98_detected_crop_rows_on_segmented_image.png", tile.segmented_img, tile)
+            U, S, VT, r = rSVD(tile.segmented_img, r, q, p)
+            tile.segmented_img = reconstruct(U, S, VT, r)
+            self.write_image_to_file("99_detected_crop_rows_on_segmented_image.png", tile.segmented_img, tile)"""
+        
+        """for tile in tiles_segmented:
+            tile.save_segmented = tile.segmented_img.copy()
+            for i in range(0, 20):
+                
+                r = i*2
+                q = 1
+                p = 1
+                U, S, VT = rSVD(tile.segmented_img, r, q, p)
+                tile.segmented_img = reconstruct(U, S, VT, r)
+                self.convert_segmented_image_to_binary(tile)
+                self.write_image_to_file(str(i) +"_detected_crop_rows_on_segmented_image.png", 255 - tile.gray, tile)
+                tile.segmented_img = tile.save_segmented.copy()"""
+        
+
         start = time.time()
         with concurrent.futures.ProcessPoolExecutor() as executor:
-            executor.map(self.detect_crop_rows, tiles_segmented)
+            result = executor.map(self.detect_crop_rows, tiles_segmented)
         print("Time to run all tiles: ", time.time() - start)
+        tiles_segmented = list(result)
+
+        self.create_csv_of_row_information(tiles_segmented)
 
     def detect_crop_rows(self, tile):
         t1 = time.time()
@@ -422,8 +476,27 @@ class crop_row_detector:
             print(f"Time to run tile: ", time.time() - t1)
         except Exception as e:
             ic(e)
-        
-        
+        return tile
 
+    def create_csv_of_row_information(self, tiles_segmented):
+        row_information = []
+        
+        for tile in tiles_segmented:
+            ic(tile.tile_number)
+            for row_number, row in enumerate(tile.vegetation_lines):
+                row_information.append([tile.tile_number, 
+                                       tile.tile_position[0],
+                                       tile.tile_position[1],
+                                       tile.direction,
+                                       row_number,  
+                                       row[0][0], 
+                                       row[0][1],
+                                       row[1][0], 
+                                       row[1][1]])
+            ic(tile.tile_position)
 
+        DF_row_information = pd.DataFrame(row_information, columns=['tile', 'x_position', 'y_position', 'angle', 'row', 'x_start', 'y_start', 'x_end', 'y_end'])
+
+        csv_path = tiles_segmented[0].output_tile_location
+        DF_row_information.to_csv(csv_path + "/row_information.csv")
 
