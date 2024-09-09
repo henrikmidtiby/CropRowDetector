@@ -37,3 +37,4 @@ snuggs==1.4.7
 tifffile==2023.7.10
 tzdata==2024.1
 zipp==3.20.1
+zope.interface==7.0.3

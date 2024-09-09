@@ -35,7 +35,7 @@ parser.add_argument('--run_specific_tile',
 parser.add_argument('--run_specific_tileset',
                     nargs='+',
                     type=int,
-                    help='takes to inputs like (--from_specific_tile 16 65). '
+                    help='takes two inputs like (--from_specific_tile 16 65). '
                     'this will run every tile from 16 to 65.')
 parser.add_argument('--expected_crop_row_distance',
                     default=20,
@@ -62,7 +62,7 @@ crd.generate_debug_images = args.generate_debug_images
 crd.tile_boundry = args.tile_boundry
 crd.expected_crop_row_distance = args.expected_crop_row_distance
 crd.threshold_level = 12
-crd.main(segmented_tile_list, plot_tile_list)
+crd.main(segmented_tile_list, plot_tile_list, args)
 
 
 

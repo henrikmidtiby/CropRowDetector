@@ -5,12 +5,15 @@ import matplotlib.pyplot as plt
 import time
 import concurrent.futures
 
+
 #import hough_transform_grayscale # This is a custom implementation of the hough transform
 from skimage.transform import hough_line
 from scipy.signal import find_peaks
 from pybaselines import Baseline
 from pathlib import Path
 from icecream import ic
+from datetime import datetime
+
 
 
 import statistics
@@ -58,6 +61,7 @@ class crop_row_detector:
         temp_path = Path(path).parent
         if not temp_path.exists():
             temp_path.mkdir(parents = True)
+            print(f"Created directory: {temp_path}")
 
     def get_debug_output_filepath(self, output_path, tile):
         return tile.output_tile_location + "/debug_images/" + f'{tile.tile_number}' + "/" + output_path
@@ -428,7 +432,7 @@ class crop_row_detector:
         tile_segmented.img_constant = tile_plot.img.copy()
 
 
-    def main(self, tiles_segmented, tiles_plot):
+    def main(self, tiles_segmented, tiles_plot, args):
 
         for list_iter, tile in enumerate(tiles_segmented):
             self.load_tile_with_data_needed_for_crop_row_detection(tile)
@@ -472,6 +476,7 @@ class crop_row_detector:
         tiles_segmented = list(total_results)
 
         self.create_csv_of_row_information(tiles_segmented)
+        self.save_statistics(args, tiles_segmented)
 
     def detect_crop_rows(self, tile):
         t1 = time.time()
@@ -511,4 +516,29 @@ class crop_row_detector:
 
         csv_path = tiles_segmented[0].output_tile_location
         DF_row_information.to_csv(csv_path + "/row_information.csv")
+
+    def save_statistics(self, args, tiles_segmented):
+        statistics_path = tiles_segmented[0].output_tile_location + "/statistics"
+        self.ensure_parent_directory_exist(statistics_path + "/output_file.txt")
+
+        print(f"Writing statistics to the folder \"{ statistics_path }\"")
+
+
+        f = open(statistics_path + "/output_file.txt", "w")
+        f.write("Input parameters:\n")
+        f.write(f" - Segmented Orthomosaic: {args.segmented_orthomosaic}\n")
+        f.write(f" - Orthomosaic: {args.orthomosaic}\n")
+        f.write(f" - Tile sizes: {args.tile_size}\n")
+        f.write(f" - Output tile location: {args.output_tile_location}\n")
+        f.write(f" - Generated debug images: {args.generate_debug_images}\n")
+        f.write(f" - Tile boundry: {args.tile_boundry}\n")
+
+        f.write(f" - Ecpected crop row distance: {args.expected_crop_row_distance}\n")
+        f.write(f" - Date and time of execution: {datetime.now().replace(microsecond=0)}\n")
+
+        f.write("\n\nOutput from run\n")
+        f.write(f" - Number of tiles: {len(tiles_segmented)}\n")
+        
+        f.close()
+        
 
