@@ -494,7 +494,8 @@ class crop_row_detector:
         row_information = []
         
         for tile in tiles_segmented:
-            ic(tile.tile_number)
+            if tile.direction < 0:
+                tile.direction = np.pi + tile.direction
             for row_number, row in enumerate(tile.vegetation_lines):
                 row_information.append([tile.tile_number, 
                                        tile.tile_position[0],
@@ -505,7 +506,6 @@ class crop_row_detector:
                                        row[0][1],
                                        row[1][0], 
                                        row[1][1]])
-            ic(tile.tile_position)
 
         DF_row_information = pd.DataFrame(row_information, columns=['tile', 'x_position', 'y_position', 'angle', 'row', 'x_start', 'y_start', 'x_end', 'y_end'])
 
