@@ -42,9 +42,9 @@ parser.add_argument('--expected_crop_row_distance',
                     type=int,
                     help='The expected distance between crop rows in pixels, default is 20.')
 parser.add_argument('--run_parralel',
-                    default=False,
+                    default=True,
                     type=bool,
-                    help='If set to true, the program will run in parralel mode, default is False.')
+                    help='If set to true, the program will run in parralel mode, default is True.')
 args = parser.parse_args()
 
 # Initialize the tile separator
