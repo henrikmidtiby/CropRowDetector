@@ -53,7 +53,7 @@ class crop_row_detector:
         self.tile_boundry = False
         self.threshold_level = 10
         self.expected_crop_row_distance = 20
-        self.run_parralel = False
+        self.run_parralel = True
         # This class is just a crop row detctor in form of a collection of functions, 
         # all of the information is stored in the information class Tile. 
 
@@ -478,7 +478,8 @@ class crop_row_detector:
             for tile in tiles_segmented:
                 total_results.append(self.detect_crop_rows(tile))
         print("Time to run all tiles: ", time.time() - start)
-        tiles_segmented = list(total_results)
+        tiles_segmented = list(total_results.copy())
+        total_results = None
 
         self.create_csv_of_row_information(tiles_segmented)
         self.save_statistics(args, tiles_segmented)
