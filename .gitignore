@@ -3,6 +3,7 @@ venv/
 build/
 output/
 output_*/
+Tests/
 *.pyc
 2023*
 2024*
