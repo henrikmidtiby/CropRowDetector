@@ -41,6 +41,10 @@ parser.add_argument('--expected_crop_row_distance',
                     default=20,
                     type=int,
                     help='The expected distance between crop rows in pixels, default is 20.')
+parser.add_argument('--run_parralel',
+                    default=True,
+                    type=bool,
+                    help='If set to true, the program will run in parralel mode, default is True.')
 args = parser.parse_args()
 
 # Initialize the tile separator
@@ -62,6 +66,7 @@ crd.generate_debug_images = args.generate_debug_images
 crd.tile_boundry = args.tile_boundry
 crd.expected_crop_row_distance = args.expected_crop_row_distance
 crd.threshold_level = 12
+crd.run_parralel = args.run_parralel
 crd.main(segmented_tile_list, plot_tile_list, args)
 
 

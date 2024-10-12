@@ -19,6 +19,15 @@ from datetime import datetime
 import statistics
 import traceback
 
+class tile_data_holder:
+    def __init__(self):
+        self.segmented_img=None
+        self.veg_img=None
+        self.veg_img_constant=None
+        self.gray=None
+        self.gray_inverse=None
+        
+
 def rSVD(X, r, q, p):
     U, S, VT = np.linalg.svd(X, full_matrices=False)
     #cutoff = 2.858 * statistics.median((255 - X).flatten())
@@ -53,6 +62,7 @@ class crop_row_detector:
         self.tile_boundry = False
         self.threshold_level = 10
         self.expected_crop_row_distance = 20
+        self.run_parralel = True
         # This class is just a crop row detctor in form of a collection of functions, 
         # all of the information is stored in the information class Tile. 
 
@@ -91,13 +101,13 @@ class crop_row_detector:
         h = cv2.filter2D(h, -1, kernel)
         return h
 
-    def apply_hough_lines(self, tile):
+    def apply_hough_lines(self, tile,tile_img_data):
         number_of_angles = 8*360
         tested_angles = np.linspace(-np.pi / 2, np.pi / 2, number_of_angles)
         
         #scipy's implementation er anvendt, da denne for nu er hurtigere
         #self.h, self.theta, self.d = hough_transform_grayscale.hough_line(self.gray, theta=tested_angles)
-        h, tile.theta, tile.d = hough_line(tile.gray, theta=tested_angles)
+        h, tile_img_data.theta, tile_img_data.d = hough_line(tile_img_data.gray, theta=tested_angles)
         h = h.astype(np.float32)
 
         h = self.normalize_array(h)
@@ -110,7 +120,7 @@ class crop_row_detector:
 
         h = self.apply_top_hat(h, tile)
         
-        tile.h = self.normalize_array(h)
+        tile_img_data.h = self.normalize_array(h)
 
         self.write_image_to_file("35_hough_image_tophat.png", 255 * h, tile)
 
@@ -125,21 +135,21 @@ class crop_row_detector:
             arr = arr + 10e-10
         return arr
 
-    def determine_dominant_direction(self, tile):
-        baseline_fitter = Baseline(tile.theta*180/np.pi, check_finite=False)
+    def determine_dominant_direction(self, tile,tile_img_data):
+        baseline_fitter = Baseline(tile_img_data.theta*180/np.pi, check_finite=False)
 
         # There are 4 different ways to determine the dominant row, as seen below.
-        tile.direction_response = np.sum(np.square(tile.h), axis=0)
-        tile.log_direc = np.log(tile.direction_response)
-        tile.log_direc_baseline = np.log(tile.direction_response) - baseline_fitter.mor(np.log(tile.direction_response), half_window=30)[0]
-        tile.direc_baseline = tile.direction_response - baseline_fitter.mor(tile.direction_response, half_window=30)[0]
+        tile_img_data.direction_response = np.sum(np.square(tile_img_data.h), axis=0)
+        tile_img_data.log_direc = np.log(tile_img_data.direction_response)
+        tile_img_data.log_direc_baseline = np.log(tile_img_data.direction_response) - baseline_fitter.mor(np.log(tile_img_data.direction_response), half_window=30)[0]
+        tile_img_data.direc_baseline = tile_img_data.direction_response - baseline_fitter.mor(tile_img_data.direction_response, half_window=30)[0]
         
 
-        tile.direction_with_most_energy_idx = np.argmax(tile.direc_baseline)
-        tile.direction = tile.theta[tile.direction_with_most_energy_idx]
+        tile_img_data.direction_with_most_energy_idx = np.argmax(tile_img_data.direc_baseline)
+        tile.direction = tile_img_data.theta[tile_img_data.direction_with_most_energy_idx]
         
         
-        self.plot_direction_energies(tile)
+        self.plot_direction_energies(tile,tile_img_data)
         
 
         """
@@ -158,62 +168,66 @@ class crop_row_detector:
         """
         
 
-    def plot_direction_energies(self, tile):
+    def plot_direction_energies(self,tile ,tile_img_data):
         plt.figure(figsize=(16, 9))
-        self.plot_direction_response_and_maximum(tile, tile.log_direc, 
+        self.plot_direction_response_and_maximum(tile_img_data, tile_img_data.log_direc, 
                                                  'blue', 'log of direction response')
-        self.plot_direction_response_and_maximum(tile, tile.direc_baseline, 
+        self.plot_direction_response_and_maximum(tile_img_data, tile_img_data.direc_baseline, 
                                                  'green', 'direction response - baseline')
-        self.plot_direction_response_and_maximum(tile, tile.log_direc_baseline, 
+        self.plot_direction_response_and_maximum(tile_img_data, tile_img_data.log_direc_baseline, 
                                                  'orange', 'log of direction response - baseline')
-        self.plot_direction_response_and_maximum(tile, tile.direction_response, 
+        self.plot_direction_response_and_maximum(tile_img_data, tile_img_data.direction_response, 
                                                  'red', 'direction response')
         plt.legend()
         self.write_plot_to_file("36_direction_energies.png", tile)
         plt.close()
 
-    def plot_direction_response_and_maximum(self, tile, direction_response, color, label):
-        plt.plot(tile.theta*180/np.pi, direction_response, 
+    def plot_direction_response_and_maximum(self, tile_img_data, direction_response, color, label):
+        plt.plot(tile_img_data.theta*180/np.pi, direction_response, 
                  color=color, label=label)
-        plt.axvline(x=tile.theta[np.argmax(direction_response)]*180/np.pi, 
+        plt.axvline(x=tile_img_data.theta[np.argmax(direction_response)]*180/np.pi, 
                     color=color, linestyle='dashed')
 
     
-    def determine_offsets_of_crop_rows(self, tile):
-        tile.signal = tile.h[:, tile.direction_with_most_energy_idx]
-        tile.peaks, _ = find_peaks(tile.signal, 
+    def determine_offsets_of_crop_rows(self, tile,tile_img_data):
+        
+        tile_img_data.signal = tile_img_data.h[:, tile_img_data.direction_with_most_energy_idx]
+        
+        tile_img_data.peaks, _ = find_peaks(tile_img_data.signal, 
                                    distance=tile.expected_crop_row_distance / 2, 
                                    prominence=0.01)
-        self.plot_row_offset(tile)
-        self.plot_row_offset_with_peaks(tile)
+        
+        self.plot_row_offset(tile,tile_img_data)
+        
+        self.plot_row_offset_with_peaks(tile,tile_img_data)
     
     
-    def plot_row_offset(self, tile):
+    def plot_row_offset(self, tile,tile_img_data):
         plt.figure(figsize=(16, 9))
-        plt.plot(tile.signal, color='blue')
+        plt.plot(tile_img_data.signal, color='blue')
         self.write_plot_to_file("38_row_offsets.png", tile)
         plt.close()
 
 
-    def plot_row_offset_with_peaks(self, tile):
+    def plot_row_offset_with_peaks(self, tile,tile_img_data):
         plt.figure(figsize=(16, 9))
-        plt.plot(tile.signal)
-        plt.plot(tile.peaks, tile.signal[tile.peaks], "x")
-        plt.plot(np.zeros_like(tile.signal), "--", color="gray")
+        plt.plot(tile_img_data.signal)
+        plt.plot(tile_img_data.peaks, tile_img_data.signal[tile_img_data.peaks], "x")
+        plt.plot(np.zeros_like(tile_img_data.signal), "--", color="gray")
         self.write_plot_to_file("39_row_offsets_with_detected_peaks.png", tile)
         plt.close()
 
-    def determine_line_ends_of_crop_rows(self, tile):
+    def determine_line_ends_of_crop_rows(self, tile,tile_img_data):
         tile.vegetation_lines = []
         prev_peak_dist = 0
 
-        for peak_idx in tile.peaks:
-            dist = tile.d[peak_idx]
+        for peak_idx in tile_img_data.peaks:
+            dist = tile_img_data.d[peak_idx]
             
             angle = tile.direction
 
-            self.fill_in_gaps_in_detected_crop_rows(dist, prev_peak_dist, angle, tile)
-            line_ends = self.get_line_ends_within_image(dist, angle, tile.img_constant)
+            self.fill_in_gaps_in_detected_crop_rows(dist, prev_peak_dist, angle, tile,tile_img_data)
+            line_ends = self.get_line_ends_within_image(dist, angle, tile_img_data.veg_img_constant)
 
             prev_peak_dist = dist
             tile.vegetation_lines.append(line_ends)
@@ -225,36 +239,36 @@ class crop_row_detector:
         tile.vegetation_lines = vegetation_lines
 
 
-    def draw_detected_crop_rows_on_input_image_and_segmented_image(self, tile):
+    def draw_detected_crop_rows_on_input_image_and_segmented_image(self, tile,tile_img_data):
         for line_ends in tile.vegetation_lines:
             try:
-                self.draw_crop_row(tile.img, line_ends)
-                self.draw_crop_row(tile.gray_inverse, line_ends)
+                self.draw_crop_row(tile_img_data.veg_img, line_ends)
+                self.draw_crop_row(tile_img_data.gray_inverse, line_ends)
             except Exception as e:
                 print(e)
                 ic(line_ends)
 
-        self.write_image_to_file("40_detected_crop_rows.png", tile.img, tile)
-        self.write_image_to_file("45_detected_crop_rows_on_segmented_image.png", tile.gray_inverse, tile)
+        self.write_image_to_file("40_detected_crop_rows.png", tile_img_data.veg_img, tile)
+        self.write_image_to_file("45_detected_crop_rows_on_segmented_image.png", tile_img_data.gray_inverse, tile)
 
     def draw_crop_row(self, image, line_ends):
         cv2.line(image, (line_ends[0][0], line_ends[0][1]), 
                  (line_ends[1][0], line_ends[1][1]), 
                  (0, 0, 255), 1)
 
-    def add_boundary_and_number_to_tile(self, tile):
+    def add_boundary_and_number_to_tile(self, tile,tile_img_data):
         if tile.tile_boundry:
-            cv2.line(tile.img, (0, 0), (tile.img.shape[1]-1, 0), (0, 0, 255), 1)
-            cv2.line(tile.img, (0, tile.img.shape[0]-1), (tile.img.shape[1]-1, tile.img.shape[0]-1), (0, 0, 255), 1)
-            cv2.line(tile.img, (0, 0), (0, tile.img.shape[0]-1), (0, 0, 255), 1)
-            cv2.line(tile.img, (tile.img.shape[1]-1, 0), (tile.img.shape[1]-1, tile.img.shape[0]-1), (0, 0, 255), 1)
-            cv2.putText(tile.img, f'{tile.tile_number}', (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 255), 2, cv2.LINE_AA)
+            cv2.line(tile_img_data.veg_img, (0, 0), (tile_img_data.veg_img.shape[1]-1, 0), (0, 0, 255), 1)
+            cv2.line(tile_img_data.veg_img, (0, tile_img_data.veg_img.shape[0]-1), (tile_img_data.veg_img.shape[1]-1, tile_img_data.veg_img.shape[0]-1), (0, 0, 255), 1)
+            cv2.line(tile_img_data.veg_img, (0, 0), (0, tile_img_data.veg_img.shape[0]-1), (0, 0, 255), 1)
+            cv2.line(tile_img_data.veg_img, (tile_img_data.veg_img.shape[1]-1, 0), (tile_img_data.veg_img.shape[1]-1, tile_img_data.veg_img.shape[0]-1), (0, 0, 255), 1)
+            cv2.putText(tile_img_data.veg_img, f'{tile.tile_number}', (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 255), 2, cv2.LINE_AA)
 
-    def fill_in_gaps_in_detected_crop_rows(self, dist, prev_peak_dist, angle, tile):
+    def fill_in_gaps_in_detected_crop_rows(self, dist, prev_peak_dist, angle, tile,tile_img_data):
         if prev_peak_dist != 0:
             while self.distance_between_two_peaks_is_larger_than_expected(dist, prev_peak_dist, tile):
                 prev_peak_dist += tile.expected_crop_row_distance
-                line_ends = self.get_line_ends_within_image(prev_peak_dist, angle, tile.img_constant)
+                line_ends = self.get_line_ends_within_image(prev_peak_dist, angle, tile_img_data.veg_img_constant)
                 tile.filler_rows.append([line_ends, len(tile.vegetation_lines), tile.tile_number])
                 tile.vegetation_lines.append(line_ends)
 
@@ -282,18 +296,18 @@ class crop_row_detector:
         
         return line_ends     
 
-    def measure_vegetation_coverage_in_crop_row(self, tile):
+    def measure_vegetation_coverage_in_crop_row(self, tile,tile_img_data):
         # 1. Blur image with a uniform kernel
         # Approx distance between crop rows is 16 pixels.
         # I would prefer to have a kernel size that is not divisible by two.
-        vegetation_map = cv2.blur(tile.gray.astype(np.uint8), (10, 10))
+        vegetation_map = cv2.blur(tile_img_data.gray.astype(np.uint8), (10, 10))
         self.write_image_to_file("60_vegetation_map.png", vegetation_map, tile)
 
         # 2. Sample pixel values along each crop row
         #    - cv2.remap
         # Hardcoded from earlier run of the algorithm.
         # missing_plants_image = cv2.cvtColor(vegetation_map.astype(np.uint8), cv2.COLOR_GRAY2BGR)
-        missing_plants_image = tile.img
+        missing_plants_image = tile_img_data.veg_img
         df_missing_vegetation_list = []
 
         DF_combined = pd.DataFrame({'tile': [],
@@ -384,16 +398,16 @@ class crop_row_detector:
         return x_sample_coords, y_sample_coords
     
 
-    def convert_segmented_image_to_binary(self, tile):
-        binary = tile.segmented_img.copy()
+    def convert_segmented_image_to_binary(self, tile,tile_img_data):
+        binary = tile_img_data.segmented_img
         for i in range(0, binary.shape[0]):
             for j in range(0, binary.shape[1]):
                 if binary[i,j] < tile.threshold_level:
                     binary[i,j] = 255
                 else:
                     binary[i,j] = 0
-        tile.gray = binary
-        tile.gray_inverse = 255 - binary
+        tile_img_data.gray = binary
+        tile_img_data.gray_inverse = 255 - binary
 
     def load_tile_with_data_needed_for_crop_row_detection(self, tile):
         tile.generate_debug_images = self.generate_debug_images
@@ -421,22 +435,36 @@ class crop_row_detector:
         tile.filler_rows = []
 
     def combine_segmented_and_original_tile(self, tile_segmented, tile_plot):
-        assert tile_segmented.img.shape[0] == 1, "The segmented image has more then one color chanal."
+
+        tile_segmented_img=tile_segmented.read_img()
+        tile_plot_img=tile_plot.read_img()
+
+        assert tile_segmented_img.shape[0] == 1, "The segmented image has more then one color chanal."
         assert tile_plot.ulc == tile_segmented.ulc, "The two tiles are not the same location."
+
+        tile_img_data=tile_data_holder()
+
+        tile_img_data.segmented_img = tile_segmented_img.reshape(tile_segmented_img.shape[1], tile_segmented_img.shape[2])
         
-        tile_segmented.segmented_img = tile_segmented.img.reshape(tile_segmented.img.shape[1], tile_segmented.img.shape[2]).copy()
-        
-        if tile_plot.img.shape[0] == 1:
-            tile_plot.img = tile_plot.img.reshape(tile_plot.img.shape[1], tile_plot.img.shape[2]).copy()
-        tile_segmented.img = tile_plot.img.copy()
-        tile_segmented.img_constant = tile_plot.img.copy()
+        if tile_plot_img.shape[0] == 1:
+            #tile_plot.img = tile_plot.img.reshape(tile_plot.img.shape[1], tile_plot.img.shape[2]).copy()
+            temp_tile_plot=tile_plot_img.reshape(tile_plot_img.shape[1], tile_plot_img.shape[2])
+        else:
+            temp_tile_plot=tile_plot_img
+        #tile_segmented.img = tile_plot.img.copy()
+        #tile_segmented.img_constant = tile_plot.img.copy()
+        tile_img_data.veg_img=temp_tile_plot
+        tile_img_data.veg_img_constant=temp_tile_plot
+        return tile_img_data
 
 
     def main(self, tiles_segmented, tiles_plot, args):
 
-        for list_iter, tile in enumerate(tiles_segmented):
-            self.load_tile_with_data_needed_for_crop_row_detection(tile)
-            self.combine_segmented_and_original_tile(tile, tiles_plot[list_iter])
+        tile_pairs=list(zip(tiles_segmented,tiles_plot))
+
+        #for list_iter, tile in enumerate(tiles_segmented):
+        #    self.load_tile_with_data_needed_for_crop_row_detection(tile)
+        #    self.combine_segmented_and_original_tile(tile, tiles_plot[list_iter])
 
         """for tile in tiles_segmented:
             r = 10
@@ -463,38 +491,81 @@ class crop_row_detector:
 
         start = time.time()
         total_results = []
-        if len(tiles_segmented) > 20:
-            for i in range(0, int(len(tiles_segmented)/20)+1):
+        
+        if self.run_parralel:
+            
+            if len(tiles_segmented) > 20:
+                for i in range(0, int(len(tiles_segmented)/20)+1):
+                    with concurrent.futures.ProcessPoolExecutor() as executor:
+                        result = executor.map(self.detect_crop_rows, tile_pairs[i*20:i*20+20])
+                    for res in result:
+                        total_results.append(res)
+            else:
                 with concurrent.futures.ProcessPoolExecutor() as executor:
-                    result = executor.map(self.detect_crop_rows, tiles_segmented[i*20:i*20+20])
+                    result = executor.map(self.detect_crop_rows, tiles_segmented)
                 for res in result:
                     total_results.append(res)
+
         else:
-            with concurrent.futures.ProcessPoolExecutor() as executor:
-                total_results = executor.map(self.detect_crop_rows, tiles_segmented)
+            for tile in tiles_segmented:
+                total_results.append(self.detect_crop_rows(tile))
+
         print("Time to run all tiles: ", time.time() - start)
-        tiles_segmented = list(total_results)
+        
+        #tiles_segmented = list(total_results.copy())
+        total_results = list(total_results)
 
         self.create_csv_of_row_information(tiles_segmented)
         self.vegetation_row_to_csv(tiles_segmented)
         self.save_statistics(args, tiles_segmented)
 
-    def detect_crop_rows(self, tile):
+    def detect_crop_rows(self, tile_pairs):
         t1 = time.time()
+        
+        self.load_tile_with_data_needed_for_crop_row_detection(tile_pairs[0])
+        tile_img_data=self.combine_segmented_and_original_tile(tile_pairs[0], tile_pairs[1])
+
         try:
-            self.convert_segmented_image_to_binary(tile)
-            self.apply_hough_lines(tile)
-            self.determine_dominant_direction(tile)
-            self.determine_offsets_of_crop_rows(tile)
-            self.determine_line_ends_of_crop_rows(tile)
-            self.draw_detected_crop_rows_on_input_image_and_segmented_image(tile)
-            self.measure_vegetation_coverage_in_crop_row(tile)
-            self.add_boundary_and_number_to_tile(tile)
-            tile.save_tile()
-            print(f"Time to run tile: ", time.time() - t1)
+            self.convert_segmented_image_to_binary(tile_pairs[0],tile_img_data)
+        except Exception as a:
+            ic(a)
+        try:
+            self.apply_hough_lines(tile_pairs[0],tile_img_data)
+        except Exception as b:
+            ic(b)
+        try:
+            self.determine_dominant_direction(tile_pairs[0],tile_img_data)
+        except Exception as c:
+            ic(c)
+        try:
+            self.determine_offsets_of_crop_rows(tile_pairs[0],tile_img_data)
+        except Exception as d:
+            ic(d)
+        try:
+            self.determine_line_ends_of_crop_rows(tile_pairs[0],tile_img_data)
         except Exception as e:
             ic(e)
-        return tile
+        try:
+            self.draw_detected_crop_rows_on_input_image_and_segmented_image(tile_pairs[0],tile_img_data)
+        except Exception as f:
+            ic(f)
+        try:
+            self.measure_vegetation_coverage_in_crop_row(tile_pairs[0],tile_img_data)
+        except Exception as g:
+            ic(g)
+        try:
+            self.add_boundary_and_number_to_tile(tile_pairs[0],tile_img_data)
+        except Exception as h:
+            ic(h)
+        try:
+            tile_pairs[0].save_tile(tile_img_data.veg_img)
+        except Exception as i:
+            ic(i)
+        try:
+            print(f"Time to run tile: ", time.time() - t1)
+        except Exception as j:
+            ic(j)
+        return tile_pairs[0]
 
     def create_csv_of_row_information(self, tiles_segmented):
         row_information = []
