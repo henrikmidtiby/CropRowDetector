@@ -435,7 +435,7 @@ class crop_row_detector:
         tile.filler_rows = []
 
     def combine_segmented_and_original_tile(self, tile_segmented, tile_plot):
-
+        
         tile_segmented_img=tile_segmented.read_img()
         tile_plot_img=tile_plot.read_img()
 
@@ -507,7 +507,7 @@ class crop_row_detector:
                     total_results.append(res)
 
         else:
-            for tile in tiles_segmented:
+            for tile in tile_pairs:
                 total_results.append(self.detect_crop_rows(tile))
 
         print("Time to run all tiles: ", time.time() - start)
@@ -592,7 +592,7 @@ class crop_row_detector:
     def vegetation_row_to_csv(self, tiles_segmented):
 
         DF_vegetation_rows = pd.DataFrame(columns=['tile', 'row', 'x', 'y', 'vegetation'])
-        csv_path = tiles_segmented[0].output_tile_location + "/vegetation_rows.csv"
+        csv_path = tiles_segmented[0].output_tile_location + "/points_in_rows.csv"
         DF_vegetation_rows.to_csv(csv_path, index=False)
         print("tile_number: ", tiles_segmented[0].tile_number)
         print("tile_position: ", tiles_segmented[0].ulc_global)

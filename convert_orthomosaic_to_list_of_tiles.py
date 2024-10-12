@@ -88,7 +88,7 @@ class convert_orthomosaic_to_list_of_tiles:
         all directions.
         """
         processing_tiles, st_width, st_height = self.define_tiles(
-            0.01, tile_size, tile_size)
+            0, tile_size, tile_size)
 
         no_r = np.max([t.tile_position[0] for t in processing_tiles])
         no_c = np.max([t.tile_position[1] for t in processing_tiles])
