@@ -502,7 +502,7 @@ class crop_row_detector:
                         total_results.append(res)
             else:
                 with concurrent.futures.ProcessPoolExecutor() as executor:
-                    result = executor.map(self.detect_crop_rows, tiles_segmented)
+                    result = executor.map(self.detect_crop_rows, tile_pairs)
                 for res in result:
                     total_results.append(res)
 
@@ -515,9 +515,9 @@ class crop_row_detector:
         #tiles_segmented = list(total_results.copy())
         total_results = list(total_results)
 
-        self.create_csv_of_row_information(tiles_segmented)
-        self.vegetation_row_to_csv(tiles_segmented)
-        self.save_statistics(args, tiles_segmented)
+        self.create_csv_of_row_information(total_results)
+        self.vegetation_row_to_csv(total_results)
+        self.save_statistics(args, total_results)
 
     def detect_crop_rows(self, tile_pairs):
         t1 = time.time()
