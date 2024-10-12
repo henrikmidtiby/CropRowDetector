@@ -318,7 +318,7 @@ class crop_row_detector:
         
         if tile.generate_debug_images:
             filename = self.get_debug_output_filepath("68_vegetation_samples.csv", tile)       
-            DF_combined.to_csv(filename)
+            DF_combined.to_csv(filename, index=False)
         self.write_image_to_file("67_missing_plants_in_crop_line.png", missing_plants_image, tile)
 
         # 3. Export to a csv file, include the following information
@@ -476,6 +476,7 @@ class crop_row_detector:
         tiles_segmented = list(total_results)
 
         self.create_csv_of_row_information(tiles_segmented)
+        self.vegetation_row_to_csv(tiles_segmented)
         self.save_statistics(args, tiles_segmented)
 
     def detect_crop_rows(self, tile):
@@ -516,6 +517,23 @@ class crop_row_detector:
 
         csv_path = tiles_segmented[0].output_tile_location
         DF_row_information.to_csv(csv_path + "/row_information.csv")
+
+    def vegetation_row_to_csv(self, tiles_segmented):
+
+        DF_vegetation_rows = pd.DataFrame(columns=['tile', 'row', 'x', 'y', 'vegetation'])
+        csv_path = tiles_segmented[0].output_tile_location + "/vegetation_rows.csv"
+        DF_vegetation_rows.to_csv(csv_path, index=False)
+        print("tile_number: ", tiles_segmented[0].tile_number)
+        print("tile_position: ", tiles_segmented[0].ulc_global)
+        print("tile_transform: ", tiles_segmented[0].transform)
+        print("tile_resolution: ", tiles_segmented[0].resolution)
+
+        for tile in tiles_segmented:
+            filename = self.get_debug_output_filepath("68_vegetation_samples.csv", tile) 
+            DF_vegetation_rows = pd.read_csv(filename)
+            DF_vegetation_rows['x'] = (DF_vegetation_rows['x'] - tile.size[0]*tile.tile_position[1])*tile.resolution[0] + tile.ulc_global[1]
+            DF_vegetation_rows['y'] = -(DF_vegetation_rows['y'] - tile.size[1]*tile.tile_position[0])*tile.resolution[1] + tile.ulc_global[0]
+            DF_vegetation_rows.to_csv(csv_path, mode='a', index=False, header=False)
 
     def save_statistics(self, args, tiles_segmented):
         statistics_path = tiles_segmented[0].output_tile_location + "/statistics"
