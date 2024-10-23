@@ -300,8 +300,11 @@ class crop_row_detector:
         if int(y1) >= 0 and int(y1) <= img.shape[0]:
             line_ends.append([img.shape[0], int(y1)])
 
-        if line_ends[0][0] > line_ends[1][0]:
-            line_ends = [line_ends[1], line_ends[0]]
+        try:
+            if line_ends[0][0] > line_ends[1][0]:
+                line_ends = [line_ends[1], line_ends[0]]
+        except IndexError:
+            pass
 
         return line_ends
 
