@@ -5,4 +5,4 @@ The Orthomosaic Crop Row Detector can be used to detect crop rows in orthomosaic
 
 ## Development
 
-To get started on development see the [development documentation](documentation/contributing.md).
+To get started on development see the [development documentation](documentation/development.md).
