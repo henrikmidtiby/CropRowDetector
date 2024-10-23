@@ -1,14 +1,14 @@
-#from distutils.core import setup
-import numpy
-
-from setuptools import Extension, setup
-from Cython.Build import cythonize
+# from distutils.core import setup
 import sys
 
+import numpy
+from Cython.Build import cythonize
+from setuptools import Extension, setup
+
 if sys.platform.startswith("win"):
-    openmp_arg = '/openmp'
+    openmp_arg = "/openmp"
 else:
-    openmp_arg = '-fopenmp'
+    openmp_arg = "-fopenmp"
 
 
 ext_modules = [
@@ -23,17 +23,13 @@ ext_modules = [
         ["*.pyx"],
         extra_compile_args=[openmp_arg],
         extra_link_args=[openmp_arg],
-    )
+    ),
 ]
 
 setup(
-    name='parallel-tutorial',
-    ext_modules=cythonize(
-        "hough_transform_grayscale.pyx", 
-        compiler_directives={"language_level": "3"}, 
-        annotate=True
-    ),
+    name="parallel-tutorial",
+    ext_modules=cythonize("hough_transform_grayscale.pyx", compiler_directives={"language_level": "3"}, annotate=True),
     include_dirs=[numpy.get_include()],
 )
 
-#python3 setup.py build_ext --inplace
+# python3 setup.py build_ext --inplace
