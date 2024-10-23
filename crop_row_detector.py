@@ -55,7 +55,7 @@ def reconstruct(U, S, VT, r):
 class crop_row_detector:
     def __init__(self):
         self.generate_debug_images = False
-        self.tile_boundry = False
+        self.tile_boundary = False
         self.threshold_level = 10
         self.expected_crop_row_distance = 20
         self.run_parralel = True
@@ -245,7 +245,7 @@ class crop_row_detector:
         cv2.line(image, (line_ends[0][0], line_ends[0][1]), (line_ends[1][0], line_ends[1][1]), (0, 0, 255), 1)
 
     def add_boundary_and_number_to_tile(self, tile, tile_img_data):
-        if tile.tile_boundry:
+        if tile.tile_boundary:
             cv2.line(tile_img_data.veg_img, (0, 0), (tile_img_data.veg_img.shape[1] - 1, 0), (0, 0, 255), 1)
             cv2.line(
                 tile_img_data.veg_img,
@@ -428,7 +428,7 @@ class crop_row_detector:
 
     def load_tile_with_data_needed_for_crop_row_detection(self, tile):
         tile.generate_debug_images = self.generate_debug_images
-        tile.tile_boundry = self.tile_boundry
+        tile.tile_boundary = self.tile_boundary
         tile.threshold_level = self.threshold_level
         # In gimp I have measured the crop row distance to be around 20 px.
         # however I get the best results when this value is set to 30.

@@ -69,12 +69,12 @@ else:
 # Initialize the crop row detector
 crd = crop_row_detector()
 crd.generate_debug_images = args.generate_debug_images
-crd.tile_boundry = args.tile_boundry
+crd.tile_boundary = args.tile_boundary
 crd.expected_crop_row_distance = args.expected_crop_row_distance
 crd.threshold_level = 12
 crd.run_parralel = args.run_parallel
 crd.main(segmented_tile_list, plot_tile_list, args)
 
 
-# python3 crop_row_detector_main.py rødsvingel/input_data/rødsvingel.tif --orthomosaic rødsvingel/input_data/2023-04-03_Rødsvingel_1._års_Wagner_JSJ_2_ORTHO.tif --output_tile_location rødsvingel/tiles_crd --tile_size 500 --tile_boundry True --generate_debug_images True --run_specific_tile 16
+# python3 crop_row_detector_main.py rødsvingel/input_data/rødsvingel.tif --orthomosaic rødsvingel/input_data/2023-04-03_Rødsvingel_1._års_Wagner_JSJ_2_ORTHO.tif --output_tile_location rødsvingel/tiles_crd --tile_size 500 --tile_boundary True --generate_debug_images True --run_specific_tile 16
 # gdal_merge.py -o rødsvingel/rødsvingel_crd.tif -a_nodata 255 rødsvingel/tiles_crd/mahal*.tiff
