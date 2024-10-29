@@ -7,17 +7,19 @@ parser = argparse.ArgumentParser(description="Detect crop rows in segmented imag
 parser.add_argument("segmented_orthomosaic", help="Path to the segmented_orthomosaic that you want to process.")
 parser.add_argument(
     "--orthomosaic",
+    metavar="FILENAME",
     help="Path to the orthomosaic that you want to plot on. if not set, the segmented_orthomosaic will be used.",
 )
 parser.add_argument(
     "--tile_size",
     default=3000,
     type=int,
-    help="The height and width of tiles that are analyzed. Default is 3000.",
+    help="The height and width of tiles that are analyzed. Default is %(default).",
 )
 parser.add_argument(
     "--output_tile_location",
     default="output/mahal",
+    metavar="FILENAME",
     help="The location in which to save the mahalanobis tiles.",
 )
 parser.add_argument(
@@ -34,19 +36,22 @@ parser.add_argument(
     "--run_specific_tile",
     nargs="+",
     type=int,
-    help="If set, only run the specific tile numbers. " "(--run_specific_tile 16 65) will run tile 16 and 65.",
+    metavar="TILE_ID",
+    help="If set, only run the specific tile numbers. (--run_specific_tile 16 65) will run tile 16 and 65.",
 )
 parser.add_argument(
     "--run_specific_tileset",
     nargs="+",
     type=int,
-    help="takes two inputs like (--from_specific_tile 16 65). " "this will run every tile from 16 to 65.",
+    metavar="FROM_TILE_ID TO_TILE_ID",
+    help="takes two inputs like (--from_specific_tileset 16 65). This will run every tile from 16 to 65.",
 )
 parser.add_argument(
     "--expected_crop_row_distance",
     default=20,
     type=int,
-    help="The expected distance between crop rows in pixels, default is 20.",
+    metavar="DISTANCE",
+    help="The expected distance between crop rows in pixels, default is %(default).",
 )
 parser.add_argument(
     "--run_single_thread",
