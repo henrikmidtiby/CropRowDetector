@@ -7,25 +7,28 @@ parser = argparse.ArgumentParser(description="Detect crop rows in segmented imag
 parser.add_argument("segmented_orthomosaic", help="Path to the segmented_orthomosaic that you want to process.")
 parser.add_argument(
     "--orthomosaic",
-    help="Path to the orthomosaic that you want to plot on. " "if not set, the segmented_orthomosaic will be used.",
+    help="Path to the orthomosaic that you want to plot on. if not set, the segmented_orthomosaic will be used.",
 )
 parser.add_argument(
-    "--tile_size", default=3000, type=int, help="The height and width of tiles that are analyzed. " "Default is 3000."
+    "--tile_size",
+    default=3000,
+    type=int,
+    help="The height and width of tiles that are analyzed. Default is 3000.",
 )
 parser.add_argument(
-    "--output_tile_location", default="output/mahal", help="The location in which to save the mahalanobis tiles."
+    "--output_tile_location",
+    default="output/mahal",
+    help="The location in which to save the mahalanobis tiles.",
 )
 parser.add_argument(
     "--generate_debug_images",
-    default=False,
-    type=bool,
-    help="If set to true, debug images will be generated, default is False",
+    action="store_true",
+    help="If set debug images will be generated. default is no debug images is generated.",
 )
 parser.add_argument(
     "--tile_boundary",
-    default=False,
-    type=bool,
-    help="if set to true will plot a boundary on each tile " "and the tile number on the tile, is default False.",
+    action="store_true",
+    help="if set will plot a boundary on each tile and the tile number on the tile. Default is no boundary and tile number.",
 )
 parser.add_argument(
     "--run_specific_tile",
@@ -46,10 +49,9 @@ parser.add_argument(
     help="The expected distance between crop rows in pixels, default is 20.",
 )
 parser.add_argument(
-    "--run_parallel",
-    default=True,
-    type=bool,
-    help="If set to true, the program will run in parallel mode, default is True.",
+    "--run_single_thread",
+    action="store_false",
+    help="If set the program will run in as a single thread. Default is to run in parallel.",
 )
 args = parser.parse_args()
 
@@ -72,7 +74,7 @@ crd.generate_debug_images = args.generate_debug_images
 crd.tile_boundary = args.tile_boundary
 crd.expected_crop_row_distance = args.expected_crop_row_distance
 crd.threshold_level = 12
-crd.run_parralel = args.run_parallel
+crd.run_parallel = args.run_single_thread  # true if not set e.g. run in parallel
 crd.main(segmented_tile_list, plot_tile_list, args)
 
 

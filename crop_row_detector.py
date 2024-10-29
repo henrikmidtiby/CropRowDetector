@@ -58,7 +58,7 @@ class crop_row_detector:
         self.tile_boundary = False
         self.threshold_level = 10
         self.expected_crop_row_distance = 20
-        self.run_parralel = True
+        self.run_parallel = True
         # This class is just a crop row detector in form of a collection of functions,
         # all of the information is stored in the information class Tile.
 
@@ -510,7 +510,7 @@ class crop_row_detector:
         start = time.time()
         total_results = []
 
-        if self.run_parralel:
+        if self.run_parallel:
             if len(tiles_segmented) > 20:
                 for i in range(0, int(len(tiles_segmented) / 20) + 1):
                     with concurrent.futures.ProcessPoolExecutor() as executor:
