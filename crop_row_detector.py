@@ -1,4 +1,4 @@
-import concurrent.futures
+import os
 import time
 import traceback
 from datetime import datetime
@@ -14,6 +14,8 @@ from scipy.signal import find_peaks
 
 # import hough_transform_grayscale # This is a custom implementation of the hough transform
 from skimage.transform import hough_line
+from tqdm import tqdm
+from tqdm.contrib.concurrent import process_map
 
 
 class tile_data_holder:
@@ -59,6 +61,7 @@ class crop_row_detector:
         self.threshold_level = 10
         self.expected_crop_row_distance = 20
         self.run_parallel = True
+        self.max_workers = os.cpu_count()
         # This class is just a crop row detector in form of a collection of functions,
         # all of the information is stored in the information class Tile.
 
@@ -510,22 +513,10 @@ class crop_row_detector:
         start = time.time()
         total_results = []
 
-        if self.run_parallel:
-            if len(tiles_segmented) > 20:
-                for i in range(0, int(len(tiles_segmented) / 20) + 1):
-                    with concurrent.futures.ProcessPoolExecutor() as executor:
-                        result = executor.map(self.detect_crop_rows, tile_pairs[i * 20 : i * 20 + 20])
-                    for res in result:
-                        total_results.append(res)
-            else:
-                with concurrent.futures.ProcessPoolExecutor() as executor:
-                    result = executor.map(self.detect_crop_rows, tile_pairs)
-                for res in result:
-                    total_results.append(res)
-
+        if not self.run_parallel:
+            total_results = process_map(self.detect_crop_rows, tile_pairs, chunksize=1, max_workers=self.max_workers)
         else:
-            for tile in tile_pairs:
-                total_results.append(self.detect_crop_rows(tile))
+            total_results = list(tqdm(map(self.detect_crop_rows, tile_pairs), total=len(tile_pairs)))
 
         print("Time to run all tiles: ", time.time() - start)
 
@@ -537,8 +528,6 @@ class crop_row_detector:
         self.save_statistics(args, total_results)
 
     def detect_crop_rows(self, tile_pairs):
-        t1 = time.time()
-
         self.load_tile_with_data_needed_for_crop_row_detection(tile_pairs[0])
         tile_img_data = self.combine_segmented_and_original_tile(tile_pairs[0], tile_pairs[1])
 
@@ -578,10 +567,6 @@ class crop_row_detector:
             tile_pairs[0].save_tile(tile_img_data.veg_img)
         except Exception as i:
             ic(i)
-        try:
-            print("Time to run tile: ", time.time() - t1)
-        except Exception as j:
-            ic(j)
         return tile_pairs[0]
 
     def create_csv_of_row_information(self, tiles_segmented):

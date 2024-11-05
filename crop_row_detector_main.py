@@ -1,4 +1,5 @@
 import argparse
+import os
 
 from convert_orthomosaic_to_list_of_tiles import convert_orthomosaic_to_list_of_tiles
 from crop_row_detector import crop_row_detector
@@ -60,6 +61,12 @@ def parse_cmd_arguments():
         action="store_false",
         help="If set the program will run in as a single thread. Default is to run in parallel.",
     )
+    parser.add_argument(
+        "--max_workers",
+        default=os.cpu_count(),
+        type=int,
+        help="Set the maximum number of workers. Default to number of cpus.",
+    )
     args = parser.parse_args()
     return args
 
@@ -87,6 +94,7 @@ def run_crop_row_detector(segmented_tile_list, plot_tile_list, args):
     crd.expected_crop_row_distance = args.expected_crop_row_distance
     crd.threshold_level = 12
     crd.run_parallel = args.run_single_thread  # true if not set e.g. run in parallel
+    crd.max_workers = args.max_workers
     crd.main(segmented_tile_list, plot_tile_list, args)
 
 
