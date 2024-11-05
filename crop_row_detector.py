@@ -69,7 +69,7 @@ class crop_row_detector:
         temp_path = Path(path).parent
         if not temp_path.exists():
             temp_path.mkdir(parents=True)
-            print(f"Created directory: {temp_path}")
+            # print(f"Created directory: {temp_path}")
 
     def get_debug_output_filepath(self, output_path, tile):
         return tile.output_tile_location + "/debug_images/" + f"{tile.tile_number}" + "/" + output_path
@@ -513,7 +513,7 @@ class crop_row_detector:
         start = time.time()
         total_results = []
 
-        if not self.run_parallel:
+        if self.run_parallel:
             total_results = process_map(self.detect_crop_rows, tile_pairs, chunksize=1, max_workers=self.max_workers)
         else:
             total_results = list(tqdm(map(self.detect_crop_rows, tile_pairs), total=len(tile_pairs)))
