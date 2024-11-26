@@ -57,6 +57,27 @@ def parse_cmd_arguments():
         help="The expected distance between crop rows in pixels, default is %(default).",
     )
     parser.add_argument(
+        "--min_angle",
+        default=0,
+        type=float,
+        metavar="ANGLE",
+        help="The minimum angle in which the crop rows is expected. Value between 0 and 180. (In compas angles, i.e. 0 north, 90 east, 180 south and 270 west). Default is 0.",
+    )
+    parser.add_argument(
+        "--max_angle",
+        default=180,
+        type=float,
+        metavar="ANGLE",
+        help="The maximum angle in which the crop rows is expected. Value between 0 and 180. (In compas angles, i.e. 0 north, 90 east, 180 south and 270 west). Default is 180.",
+    )
+    parser.add_argument(
+        "--angle_resolution",
+        default=8,
+        type=int,
+        metavar="BINS",
+        help="How many bins each degree is divided into. Default is 8.",
+    )
+    parser.add_argument(
         "--run_single_thread",
         action="store_false",
         help="If set the program will run in as a single thread. Default is to run in parallel.",
@@ -92,6 +113,9 @@ def run_crop_row_detector(segmented_tile_list, plot_tile_list, args):
     crd.generate_debug_images = args.generate_debug_images
     crd.tile_boundary = args.tile_boundary
     crd.expected_crop_row_distance = args.expected_crop_row_distance
+    crd.min_crop_row_angle = args.min_angle
+    crd.max_crop_row_angle = args.max_angle
+    crd.crop_row_angle_resolution = args.angle_resolution
     crd.threshold_level = 12
     crd.run_parallel = args.run_single_thread  # true if not set e.g. run in parallel
     crd.max_workers = args.max_workers
