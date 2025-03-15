@@ -27,33 +27,6 @@ class tile_data_holder:
         self.gray_inverse = None
 
 
-def rSVD(X, r, q, p):
-    U, S, VT = np.linalg.svd(X, full_matrices=False)
-    # cutoff = 2.858 * statistics.median((255 - X).flatten())
-    # r = np.max(np.where(S > cutoff))
-    # print("cutoff: ", cutoff)
-    # print("r: ", r)
-
-    # step 1: Sample column space of X with P matrix
-    ny = X.shape[1]
-    P = np.random.randn(ny, r + p)
-    Z = X @ P
-    for _ in range(q):
-        Z = X @ (X.T @ Z)
-
-    Q, _ = np.linalg.qr(Z, mode="reduced")
-
-    # step 2: Compute the reduced SVD of Q.T @ X
-    Y = Q.T @ X
-    UY, S, VT = np.linalg.svd(Y, full_matrices=False)
-    U = Q @ UY
-    return U, S, VT, r
-
-
-def reconstruct(U, S, VT, r):
-    return U[:, : (r + 1)] @ np.diag(S[: (r + 1)]) @ VT[: (r + 1), :]
-
-
 class crop_row_detector:
     def __init__(self):
         self.generate_debug_images = False
@@ -498,32 +471,6 @@ class crop_row_detector:
 
     def main(self, tiles_segmented, tiles_plot, args):
         tile_pairs = list(zip(tiles_segmented, tiles_plot, strict=False))
-
-        # for list_iter, tile in enumerate(tiles_segmented):
-        #    self.load_tile_with_data_needed_for_crop_row_detection(tile)
-        #    self.combine_segmented_and_original_tile(tile, tiles_plot[list_iter])
-
-        """for tile in tiles_segmented:
-            r = 10
-            q = 1
-            p = 1
-            self.write_image_to_file("98_detected_crop_rows_on_segmented_image.png", tile.segmented_img, tile)
-            U, S, VT, r = rSVD(tile.segmented_img, r, q, p)
-            tile.segmented_img = reconstruct(U, S, VT, r)
-            self.write_image_to_file("99_detected_crop_rows_on_segmented_image.png", tile.segmented_img, tile)"""
-
-        """for tile in tiles_segmented:
-            tile.save_segmented = tile.segmented_img.copy()
-            for i in range(0, 20):
-
-                r = i*2
-                q = 1
-                p = 1
-                U, S, VT = rSVD(tile.segmented_img, r, q, p)
-                tile.segmented_img = reconstruct(U, S, VT, r)
-                self.convert_segmented_image_to_binary(tile)
-                self.write_image_to_file(str(i) +"_detected_crop_rows_on_segmented_image.png", 255 - tile.gray, tile)
-                tile.segmented_img = tile.save_segmented.copy()"""
 
         start = time.time()
         total_results = []
