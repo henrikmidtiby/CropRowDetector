@@ -486,6 +486,7 @@ class crop_row_detector:
         total_results = list(total_results)
 
         self.create_csv_of_row_information(total_results)
+        self.create_csv_of_row_information_global(total_results)
         self.vegetation_row_to_csv(total_results)
         self.save_statistics(args, total_results)
 
@@ -559,6 +560,35 @@ class crop_row_detector:
 
         csv_path = tiles_segmented[0].output_tile_location
         DF_row_information.to_csv(csv_path + "/row_information.csv")
+
+    def create_csv_of_row_information_global(self, tiles_segmented):
+        row_information = []
+
+        for tile in tiles_segmented:
+            if tile.direction < 0:
+                tile.direction = np.pi + tile.direction
+            for row_number, row in enumerate(tile.vegetation_lines):
+                row_information.append(
+                    [
+                        tile.tile_number,
+                        tile.tile_position[0],
+                        tile.tile_position[1],
+                        tile.direction,
+                        row_number,
+                        (row[0][0] - tile.size[0] * tile.tile_position[1]) * tile.resolution[0] + tile.ulc_global[1],
+                        (row[0][1] - tile.size[1] * tile.tile_position[0]) * tile.resolution[1] + tile.ulc_global[0],
+                        (row[1][0] - tile.size[0] * tile.tile_position[1]) * tile.resolution[0] + tile.ulc_global[1],
+                        (row[1][1] - tile.size[1] * tile.tile_position[0]) * tile.resolution[1] + tile.ulc_global[0],
+                    ]
+                )
+
+        DF_row_information = pd.DataFrame(
+            row_information,
+            columns=["tile", "x_position", "y_position", "angle", "row", "x_start", "y_start", "x_end", "y_end"],
+        )
+
+        csv_path = tiles_segmented[0].output_tile_location
+        DF_row_information.to_csv(csv_path + "/row_information_global.csv")
 
     def vegetation_row_to_csv(self, tiles_segmented):
         DF_vegetation_rows = pd.DataFrame(columns=["tile", "row", "x", "y", "vegetation"])
