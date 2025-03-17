@@ -1,15 +1,56 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+
+# Distribution / packaging
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+pip-wheel-metadata/
+share/python-wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+
+# pytest
+test_coverage/
+.coverage
+.pytest_cache
+
+# Sphinx documentation
+docs/_build/
+docs/build/
+docs/source/_autosummary/
+docs/source/reference/
+docs/source/_build/
+
+# Environments
+.env
+.venv
 env/
 venv/
-build/
-output/
-output_*/
-Tests/
+ENV/
+env.bak/
+venv.bak/
+
+# mypy
+.mypy_cache/
+
+# ruff
+.ruff_cache/
+
+# MISC
 *.pyc
-2023*
-2024*
-rødsvingel*
-Show*
-parallel_test.py
-hough_transform_grayscale.html
-hough_transform_grayscale.c
-hough_transform_grayscale.cpython-310-x86_64-linux-gnu.so
+*.bak
+.DS_Store
+.vscode
