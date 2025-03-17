@@ -22,8 +22,9 @@ dependencies = [
   "rasterio>=1.4.3",
   "tqdm>=4.67.1",
   "pybaselines>=1.1.0",
-  "opencv-python",
-  "scikit-image",
+  "opencv-python>=4.11.0.86",
+  "scikit-image>=0.25.2",
+  "scipy>=1.15.2",
   "pandas",
   "icecream",
 ]

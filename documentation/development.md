@@ -2,7 +2,7 @@
 
 Development uses pre-commit for code linting and formatting. To setup development with pre-commit follow these steps after cloning the repository:
 
-1. Create a virtual environment with python 3.10:
+1. Create a virtual environment with python 3.10 or newer:
 
 ```
 python3.10 -m venv venv
@@ -20,19 +20,23 @@ source venv/bin/activate
 3. Install the requiret python packages:
 
 ```
-pip install -r requirements.txt
+pip install -e[dev]
 ```
 
-4. Install pre-commit package
-
-```
-pip install pre-commit
-```
-
-5. Install pre-commit hooks
+4. Install pre-commit hooks
 
 ```
 pre-commit install
 ```
 
 You are now ready to contribute.
+
+5. Running CLI
+
+The packages install a script which can be run with `CRD`. See
+
+```
+CRD --help
+```
+
+For more info on how to use the CLI.
