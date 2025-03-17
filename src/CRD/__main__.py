@@ -1,8 +1,10 @@
+from __future__ import annotations
+
 import argparse
 import os
 
-from convert_orthomosaic_to_list_of_tiles import convert_orthomosaic_to_list_of_tiles
-from crop_row_detector import crop_row_detector
+from CRD.convert_orthomosaic_to_list_of_tiles import convert_orthomosaic_to_list_of_tiles
+from CRD.crop_row_detector import crop_row_detector
 
 
 def parse_cmd_arguments():
@@ -122,10 +124,14 @@ def run_crop_row_detector(segmented_tile_list, plot_tile_list, args):
     crd.main(segmented_tile_list, plot_tile_list, args)
 
 
-if __name__ == "__main__":
+def _main():
     args = parse_cmd_arguments()
     segmented_tile_list, plot_tile_list = init_tile_separator(args)
     run_crop_row_detector(segmented_tile_list, plot_tile_list, args)
+
+
+if __name__ == "__main__":
+    _main()
 
 # python3 crop_row_detector_main.py rødsvingel/input_data/rødsvingel.tif --orthomosaic rødsvingel/input_data/2023-04-03_Rødsvingel_1._års_Wagner_JSJ_2_ORTHO.tif --output_tile_location rødsvingel/tiles_crd --tile_size 500 --tile_boundary True --generate_debug_images True --run_specific_tile 16
 # gdal_merge.py -o rødsvingel/rødsvingel_crd.tif -a_nodata 255 rødsvingel/tiles_crd/mahal*.tiff

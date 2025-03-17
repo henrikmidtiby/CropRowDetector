@@ -1,7 +1,85 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "CRD"
+dynamic = ["version"]
+authors = [
+  { name="Henrik Skov Midtiby", email="hemi@mmmi.sdu.dk" },
+]
+maintainers = [
+  { name="Henrik Skov Midtiby", email="hemi@mmmi.sdu.dk" },
+  { name="Henrik Dyrberg Egemose", email="hde@mmmi.sdu.dk" },
+]
+description = "Crop Row Detector."
+readme = "README.md"
+license-files = ["LICEN[CS]E*"]
+requires-python = ">=3.10"
+dependencies = [
+  "matplotlib>=3.9.3",
+  "numpy>=2.1.3",
+  "rasterio>=1.4.3",
+  "tqdm>=4.67.1",
+  "pybaselines>=1.1.0",
+  "opencv-python",
+  "scikit-image",
+  "pandas",
+  "icecream",
+]
+classifiers = [
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Topic :: Scientific/Engineering :: GIS",
+    "Topic :: Scientific/Engineering :: Image Processing",
+    "Operating System :: OS Independent",
+]
+
+[project.urls]
+Homepage = "https://github.com/henrikmidtiby/TODO"
+Issues = "https://github.com/henrikmidtiby/TODO/issues"
+
+[project.optional-dependencies]
+dev = [
+  "pre-commit>=4.0.1",
+  "pytest>=8.3.4",
+  "pytest-cov>=6.0.0",
+  "mypy>=1.13.0",
+  "sphinx>=8.1.3",
+  "myst_parser>=4.0.0",
+  "furo>=2024.8.6",
+  "sphinx_copybutton>=0.5.2",
+  "sphinx_reredirects>=0.1.5",
+  "sphinx-argparse>=0.5.2",
+]
+test = [
+  "pytest>=8.3.4",
+  "pytest-cov>=6.0.0",
+]
+docs = [
+  "sphinx>=8.1.3",
+  "myst_parser>=4.0.0",
+  "furo>=2024.8.6",
+  "sphinx_copybutton>=0.5.2",
+  "sphinx_reredirects>=0.1.5",
+  "sphinx-argparse>=0.5.2",
+]
+
+[project.scripts]
+CRD = "CRD.__main__:_main"
+
+[tool.hatch.version]
+path = "src/CRD/__init__.py"
+
+[tool.pytest.ini_options]
+addopts = "--cov=CRD --cov-report html:test_coverage"
+
 [tool.codespell]
 check-hidden = true
 skip = ".git,venv,*.c"
-ignore-words-list = "mor"
+ignore-words-list = "mor, FPR"
 
 [tool.ruff]
 line-length = 120
@@ -24,12 +102,14 @@ select = [
 ]
 
 ignore = [
+  # Doc string format currently not used
+  "D205",
+  "D401",
   # Use ternary operator instead of if/else
   "SIM108",
   # docstring ignores - conflicting rules
   "D203",
   "D212",
-  "D205",
   # missing docstrings
   "D100",
   "D101",
@@ -43,7 +123,21 @@ ignore = [
   "E114",
   "E117",
   "E501",
+  # still using D102 since docstring inherited is not supported in ruff"
+  "D102",
 ]
+
+[tool.ruff.lint.per-file-ignores]
+"__init__.py" = [
+  "D104",
+  "F401",
+  "F403",
+]
+"tests/*" = ["D"]
+"docs/*" = ["D"]
+
+[tool.ruff.lint.pydocstyle]
+convention = "numpy"
 
 [tool.ruff.format]
 docstring-code-format = true

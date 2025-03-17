@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import cv2
 import rasterio
 from rasterio.transform import Affine

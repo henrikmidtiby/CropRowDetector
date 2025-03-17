@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import os
 
 import cv2
@@ -5,7 +7,7 @@ import numpy as np
 import rasterio
 from rasterio.windows import Window
 
-from tile import Tile
+from CRD.tile import Tile
 
 
 class convert_orthomosaic_to_list_of_tiles:
