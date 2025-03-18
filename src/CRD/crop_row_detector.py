@@ -76,9 +76,9 @@ class crop_row_detector:
         h = cv2.filter2D(h, -1, kernel)
         return h
 
-    def compas_dregree_angle_to_hough_rad(self, degree_angle):
+    def compass_degree_angle_to_hough_rad(self, degree_angle):
         """
-        Convert compas angles (0 north 90 east 180 south and 270 west) to radians in hough space.
+        Convert compass angles (0 north 90 east 180 south and 270 west) to radians in hough space.
         Since the hough angle is measured in image coordinates (origin in top left corner and y going down)
         and the angle is to the normal of the line measured on the unit circle, correcting for this
         ends opp canceling each other as we can always add 180 degrees since it is a line.
@@ -86,10 +86,10 @@ class crop_row_detector:
         rad_angle = np.deg2rad(degree_angle)
         return rad_angle
 
-    def apply_hough_lines(self, tile, tile_img_data):
+    def apply_hough_lines(self, tile, bw_image):
         number_of_angles = int(self.crop_row_angle_resolution * (self.max_crop_row_angle - self.min_crop_row_angle))
-        min_rad_angle = self.compas_dregree_angle_to_hough_rad(self.min_crop_row_angle)
-        max_rad_angle = self.compas_dregree_angle_to_hough_rad(self.max_crop_row_angle)
+        min_rad_angle = self.compass_degree_angle_to_hough_rad(self.min_crop_row_angle)
+        max_rad_angle = self.compass_degree_angle_to_hough_rad(self.max_crop_row_angle)
         tested_angles = np.linspace(min_rad_angle, max_rad_angle, number_of_angles)
 
         # scipy's implementation er anvendt, da denne for nu er hurtigere
