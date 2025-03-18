@@ -3,8 +3,8 @@ from __future__ import annotations
 import argparse
 import os
 
-from CRD.convert_orthomosaic_to_list_of_tiles import convert_orthomosaic_to_list_of_tiles
 from CRD.crop_row_detector import crop_row_detector
+from CRD.orthomosaic_tiler import OrthomosaicTiles
 
 
 def parse_cmd_arguments():
@@ -96,16 +96,23 @@ def parse_cmd_arguments():
 
 def init_tile_separator(args):
     # Initialize the tile separator
-    tsr = convert_orthomosaic_to_list_of_tiles()
-    tsr.run_specific_tile = args.run_specific_tile
-    tsr.run_specific_tileset = args.run_specific_tileset
-    tsr.tile_size = args.tile_size
-    tsr.output_tile_location = args.output_tile_location
-    segmented_tile_list = tsr.main(args.segmented_orthomosaic)
+    tiler = OrthomosaicTiles(
+        orthomosaic=args.segmented_orthomosaic,
+        tile_size=args.tile_size,
+        run_specific_tile=args.run_specific_tile,
+        run_specific_tileset=args.run_specific_tileset,
+    )
+    segmented_tile_list = tiler.divide_orthomosaic_into_tiles()
     if args.orthomosaic is None:
-        plot_tile_list = tsr.main(args.segmented_orthomosaic)
+        plot_tile_list = segmented_tile_list.copy()
     else:
-        plot_tile_list = tsr.main(args.orthomosaic)
+        tiler = OrthomosaicTiles(
+            orthomosaic=args.orthomosaic,
+            tile_size=args.tile_size,
+            run_specific_tile=args.run_specific_tile,
+            run_specific_tileset=args.run_specific_tileset,
+        )
+        plot_tile_list = tiler.divide_orthomosaic_into_tiles()
     return segmented_tile_list, plot_tile_list
 
 

@@ -4,6 +4,5 @@ from __future__ import annotations
 __version__ = "0.0.1"
 
 # import CDC objects
-from .convert_orthomosaic_to_list_of_tiles import *
 from .crop_row_detector import *
-from .tile import *
+from .orthomosaic_tiler import *
