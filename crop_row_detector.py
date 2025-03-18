@@ -377,8 +377,8 @@ class crop_row_detector:
             {
                 "tile": tile.tile_number,
                 "row": counter,
-                "x": x_sample_coords + tile.size[0] * tile.tile_position[1],
-                "y": y_sample_coords + tile.size[1] * tile.tile_position[0],
+                "x": tile.ulc_global[1] + tile.resolution[0] * x_sample_coords,
+                "y": tile.ulc_global[0] - tile.resolution[1] * y_sample_coords,
                 "vegetation": vegetation_samples.transpose()[0],
             }
         )
@@ -594,21 +594,10 @@ class crop_row_detector:
         DF_vegetation_rows = pd.DataFrame(columns=["tile", "row", "x", "y", "vegetation"])
         csv_path = tiles_segmented[0].output_tile_location + "/points_in_rows.csv"
         DF_vegetation_rows.to_csv(csv_path, index=False)
-        print("tile_number: ", tiles_segmented[0].tile_number)
-        print("tile_position: ", tiles_segmented[0].ulc_global)
-        print("tile_transform: ", tiles_segmented[0].transform)
-        print("tile_resolution: ", tiles_segmented[0].resolution)
 
         for tile in tiles_segmented:
             filename = self.get_debug_output_filepath("68_vegetation_samples.csv", tile)
             DF_vegetation_rows = pd.read_csv(filename)
-            DF_vegetation_rows["x"] = (
-                DF_vegetation_rows["x"] - tile.size[0] * tile.tile_position[1]
-            ) * tile.resolution[0] + tile.ulc_global[1]
-            DF_vegetation_rows["y"] = (
-                -(DF_vegetation_rows["y"] - tile.size[1] * tile.tile_position[0]) * tile.resolution[1]
-                + tile.ulc_global[0]
-            )
             DF_vegetation_rows.to_csv(csv_path, mode="a", index=False, header=False)
 
     def save_statistics(self, args, tiles_segmented):
