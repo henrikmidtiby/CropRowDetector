@@ -575,10 +575,10 @@ class crop_row_detector:
                         tile.tile_position[1],
                         tile.direction,
                         row_number,
-                        (row[0][0] - tile.size[0] * tile.tile_position[1]) * tile.resolution[0] + tile.ulc_global[1],
-                        (row[0][1] - tile.size[1] * tile.tile_position[0]) * tile.resolution[1] + tile.ulc_global[0],
-                        (row[1][0] - tile.size[0] * tile.tile_position[1]) * tile.resolution[0] + tile.ulc_global[1],
-                        (row[1][1] - tile.size[1] * tile.tile_position[0]) * tile.resolution[1] + tile.ulc_global[0],
+                        tile.ulc_global[1] + tile.resolution[0] * row[0][0],
+                        tile.ulc_global[0] - tile.resolution[1] * row[0][1],
+                        tile.ulc_global[1] + tile.resolution[0] * row[1][0],
+                        tile.ulc_global[0] - tile.resolution[1] * row[1][1],
                     ]
                 )
 
