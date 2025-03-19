@@ -358,8 +358,8 @@ class crop_row_detector:
             cv2.circle(
                 missing_plants_image,
                 (
-                    int(location["x"] - tile.size[0] * tile.tile_position[1]),
-                    int(location["y"] - tile.size[1] * tile.tile_position[0]),
+                    int((location["x"] - tile.ulc_global[1]) / tile.resolution[0]),
+                    int((tile.ulc_global[0] - location["y"]) / tile.resolution[1]),
                 ),
                 2,
                 (255, 255, 0),
