@@ -31,6 +31,7 @@ class Tile:
 
     def __init__(
         self,
+        orthomosaic: pathlib.Path,
         start_point: tuple[int, int],
         position: list[int],
         height: float,
@@ -41,6 +42,7 @@ class Tile:
         top: float,
     ):
         # Data for the tile
+        self.orthomosaic = orthomosaic
         self.size = (height, width)
         self.tile_position = position
         self.ulc = start_point
@@ -63,9 +65,9 @@ class Tile:
         self.output: NDArray[Any] = np.zeros(0)
         """np.ndarray : processed output of tile to save for later use."""
 
-    def read_tile(self, orthomosaic_filename: pathlib.Path) -> NDArray[Any]:
+    def read_tile(self) -> NDArray[Any]:
         """Read the tiles image data from the orthomosaic."""
-        with rasterio.open(orthomosaic_filename) as src:
+        with rasterio.open(self.orthomosaic) as src:
             window = Window.from_slices(
                 (self.ulc[0], self.lrc[0]),
                 (self.ulc[1], self.lrc[1]),
@@ -87,7 +89,7 @@ class Tile:
             output_tile_filename,
             "w",
             driver="GTiff",
-            nodata=255,
+            # nodata=255,
             res=self.resolution,
             height=self.size[0],
             width=self.size[1],
@@ -96,9 +98,9 @@ class Tile:
             crs=self.crs,
             transform=self.transform,
         ) as new_dataset:
-            output = np.where(self.mask > 0, image, 255)
-            new_dataset.write(output)
-            new_dataset.write_mask(self.mask)
+            # output = np.where(self.mask > 0, image, 255)
+            new_dataset.write(image)
+            # new_dataset.write_mask(self.mask)
 
 
 class OrthomosaicTiles:
@@ -237,21 +239,34 @@ class OrthomosaicTiles:
                     tile_c = last_position[1]
                 else:
                     tile_c = c * step_width
-                tiles.append(Tile((tile_r, tile_c), pos, self.tile_size, self.tile_size, resolution, crs, left, top))
+                tiles.append(
+                    Tile(
+                        self.orthomosaic,
+                        (tile_r, tile_c),
+                        pos,
+                        self.tile_size,
+                        self.tile_size,
+                        resolution,
+                        crs,
+                        left,
+                        top,
+                    )
+                )
         return tiles, step_width, step_height
 
     def save_orthomosaic_from_tile_output(self, orthomosaic_filename: pathlib.Path) -> None:
         """Save an orthomosaic from the processed tiles."""
+        if not orthomosaic_filename.parent.exists():
+            orthomosaic_filename.parent.mkdir(parents=True)
         with rasterio.open(self.orthomosaic) as src:
             profile = src.profile
-            profile["count"] = 1
-            profile["nodata"] = 255
+            # profile["nodata"] = 255
         with rasterio.open(orthomosaic_filename, "w", **profile) as dst:
             for tile in self.tiles:
                 window = Window.from_slices(
                     (tile.ulc[0], tile.lrc[0]),
                     (tile.ulc[1], tile.lrc[1]),
                 )
-                output = np.where(tile.mask > 0, tile.output, 255)
-                dst.write(output, window=window)
-                dst.write_mask(tile.mask, window=window)
+                # output = np.where(tile.mask > 0, tile.output, 255)
+                dst.write(tile.output, window=window)
+                # dst.write_mask(tile.mask, window=window)
