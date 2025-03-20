@@ -2,6 +2,8 @@ from __future__ import annotations
 
 import argparse
 import os
+import pathlib
+from copy import deepcopy
 
 from CRD.crop_row_detector import crop_row_detector
 from CRD.orthomosaic_tiler import OrthomosaicTiles
@@ -25,6 +27,7 @@ def parse_cmd_arguments():
         "--output_tile_location",
         default="output/mahal",
         metavar="FILENAME",
+        type=pathlib.Path,
         help="The location in which to save the mahalanobis tiles.",
     )
     parser.add_argument(
@@ -96,29 +99,30 @@ def parse_cmd_arguments():
 
 def init_tile_separator(args):
     # Initialize the tile separator
-    tiler = OrthomosaicTiles(
+    segmented_tiler = OrthomosaicTiles(
         orthomosaic=args.segmented_orthomosaic,
         tile_size=args.tile_size,
         run_specific_tile=args.run_specific_tile,
         run_specific_tileset=args.run_specific_tileset,
     )
-    segmented_tile_list = tiler.divide_orthomosaic_into_tiles()
+    segmented_tiler.divide_orthomosaic_into_tiles()
     if args.orthomosaic is None:
-        plot_tile_list = segmented_tile_list.copy()
+        plot_tiler = deepcopy(segmented_tiler)
     else:
-        tiler = OrthomosaicTiles(
+        plot_tiler = OrthomosaicTiles(
             orthomosaic=args.orthomosaic,
             tile_size=args.tile_size,
             run_specific_tile=args.run_specific_tile,
             run_specific_tileset=args.run_specific_tileset,
         )
-        plot_tile_list = tiler.divide_orthomosaic_into_tiles()
-    return segmented_tile_list, plot_tile_list
+        plot_tiler.divide_orthomosaic_into_tiles()
+    return segmented_tiler, plot_tiler
 
 
-def run_crop_row_detector(segmented_tile_list, plot_tile_list, args):
+def run_crop_row_detector(segmented_tiler, plot_tiler, args):
     # Initialize the crop row detector
     crd = crop_row_detector()
+    crd.output_location = args.output_tile_location
     crd.generate_debug_images = args.generate_debug_images
     crd.tile_boundary = args.tile_boundary
     crd.expected_crop_row_distance = args.expected_crop_row_distance
@@ -128,13 +132,13 @@ def run_crop_row_detector(segmented_tile_list, plot_tile_list, args):
     crd.threshold_level = 12
     crd.run_parallel = args.run_single_thread  # true if not set e.g. run in parallel
     crd.max_workers = args.max_workers
-    crd.main(segmented_tile_list, plot_tile_list, args)
+    crd.detect_crop_rows_on_tiles(segmented_tiler, plot_tiler)
 
 
 def _main():
     args = parse_cmd_arguments()
-    segmented_tile_list, plot_tile_list = init_tile_separator(args)
-    run_crop_row_detector(segmented_tile_list, plot_tile_list, args)
+    segmented_tiler, plot_tiler = init_tile_separator(args)
+    run_crop_row_detector(segmented_tiler, plot_tiler, args)
 
 
 if __name__ == "__main__":
