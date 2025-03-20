@@ -9,6 +9,7 @@ from typing import Any
 import numpy as np
 import rasterio
 from numpy.typing import NDArray
+from rasterio.enums import Resampling
 from rasterio.transform import Affine
 from rasterio.windows import Window
 
@@ -261,6 +262,7 @@ class OrthomosaicTiles:
         with rasterio.open(self.orthomosaic) as src:
             profile = src.profile
             # profile["nodata"] = 255
+            overview_factors = src.overviews(src.indexes[0])
         with rasterio.open(orthomosaic_filename, "w", **profile) as dst:
             for tile in self.tiles:
                 window = Window.from_slices(
@@ -270,3 +272,5 @@ class OrthomosaicTiles:
                 # output = np.where(tile.mask > 0, tile.output, 255)
                 dst.write(tile.output, window=window)
                 # dst.write_mask(tile.mask, window=window)
+        with rasterio.open(orthomosaic_filename, "r+") as dst:
+            dst.build_overviews(overview_factors, Resampling.average)
