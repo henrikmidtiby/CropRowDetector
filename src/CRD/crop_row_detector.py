@@ -283,8 +283,8 @@ class crop_row_detector:
                 {
                     "tile": tile.tile_number,
                     "row": row_number,
-                    "x": tile.ulc_global[1] + tile.resolution[0] * x_sample_coords,
-                    "y": tile.ulc_global[0] - tile.resolution[1] * y_sample_coords,
+                    "x": tile.ulc_global[0] + tile.resolution[0] * x_sample_coords,
+                    "y": tile.ulc_global[1] - tile.resolution[1] * y_sample_coords,
                     "vegetation": vegetation_samples.transpose()[0],
                 }
             )
@@ -303,8 +303,8 @@ class crop_row_detector:
             cv2.circle(
                 image,
                 (
-                    int((location["x"] - tile.ulc_global[1]) / tile.resolution[0]),
-                    int((tile.ulc_global[0] - location["y"]) / tile.resolution[1]),
+                    int((location["x"] - tile.ulc_global[0]) / tile.resolution[0]),
+                    int((tile.ulc_global[1] - location["y"]) / tile.resolution[1]),
                 ),
                 2,
                 (255, 255, 0),
@@ -322,8 +322,8 @@ class crop_row_detector:
             {
                 "tile": tile.tile_number,
                 "row": counter,
-                "x": tile.ulc_global[1] + tile.resolution[0] * x_sample_coords,
-                "y": tile.ulc_global[0] - tile.resolution[1] * y_sample_coords,
+                "x": tile.ulc_global[0] + tile.resolution[0] * x_sample_coords,
+                "y": tile.ulc_global[1] - tile.resolution[1] * y_sample_coords,
                 "vegetation": vegetation_samples.transpose()[0],
             }
         )
@@ -445,12 +445,12 @@ class crop_row_detector:
                         tile.tile_position[1],
                         direction,
                         row_number,
-                        tile.ulc_global[1] + tile.resolution[0] * row[0][0],
-                        tile.ulc_global[0] - tile.resolution[1] * row[0][1],
-                        tile.ulc_global[1] + tile.resolution[0] * row[1][0],
-                        tile.ulc_global[0] - tile.resolution[1] * row[1][1],
-                        (2 * tile.ulc_global[1] + tile.resolution[0] * (row[0][0] + row[1][0])) / 2,
-                        (2 * tile.ulc_global[0] - tile.resolution[1] * (row[0][1] + row[1][1])) / 2,
+                        tile.ulc_global[0] + tile.resolution[0] * row[0][0],
+                        tile.ulc_global[1] - tile.resolution[1] * row[0][1],
+                        tile.ulc_global[0] + tile.resolution[0] * row[1][0],
+                        tile.ulc_global[1] - tile.resolution[1] * row[1][1],
+                        (2 * tile.ulc_global[0] + tile.resolution[0] * (row[0][0] + row[1][0])) / 2,
+                        (2 * tile.ulc_global[1] - tile.resolution[1] * (row[0][1] + row[1][1])) / 2,
                     ]
                 )
         DF_row_information = pd.DataFrame(
