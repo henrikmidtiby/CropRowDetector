@@ -24,6 +24,12 @@ def parse_cmd_arguments():
         help="The height and width of tiles that are analyzed. Default is %(default).",
     )
     parser.add_argument(
+        "--tile_overlap",
+        default=0,
+        type=float,
+        help="Percentage overlap between tiles in tile size. Added as padding making the actual tile size larger.",
+    )
+    parser.add_argument(
         "--output_tile_location",
         default="output/mahal",
         metavar="FILENAME",
@@ -102,6 +108,7 @@ def init_tile_separator(args):
     segmented_tiler = OrthomosaicTiles(
         orthomosaic=args.segmented_orthomosaic,
         tile_size=args.tile_size,
+        overlap=args.tile_overlap,
         run_specific_tile=args.run_specific_tile,
         run_specific_tileset=args.run_specific_tileset,
     )
@@ -112,6 +119,7 @@ def init_tile_separator(args):
         plot_tiler = OrthomosaicTiles(
             orthomosaic=args.orthomosaic,
             tile_size=args.tile_size,
+            overlap=args.tile_overlap,
             run_specific_tile=args.run_specific_tile,
             run_specific_tileset=args.run_specific_tileset,
         )

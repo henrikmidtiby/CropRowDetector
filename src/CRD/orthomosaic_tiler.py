@@ -138,6 +138,8 @@ class OrthomosaicTiles:
     orthomosaic
     tile_size
         tile size in pixels.
+    overlap
+        How much the tiles should overlap in percentage of the tile size.
     run_specific_tile
         List of tiles to run e.g. [15, 65] runs tiles 15 and 65.
     run_specific_tileset
@@ -149,12 +151,13 @@ class OrthomosaicTiles:
         *,
         orthomosaic: pathlib.Path,
         tile_size: int,
+        overlap: float = 0,
         run_specific_tile: list[int] | None = None,
         run_specific_tileset: list[int] | None = None,
     ):
         self.orthomosaic = orthomosaic
         self.tile_size = tile_size
-        self.overlap = 0.01
+        self.overlap = overlap
         self.run_specific_tile = run_specific_tile
         self.run_specific_tileset = run_specific_tileset
         self.tiles: list[Tile] = []
