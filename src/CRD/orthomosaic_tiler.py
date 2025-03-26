@@ -10,7 +10,6 @@ import numpy as np
 import rasterio
 from numpy.typing import NDArray
 from rasterio.enums import Resampling
-from rasterio.transform import Affine
 from rasterio.windows import Window
 
 
@@ -20,61 +19,88 @@ class Tile:
 
     Parameters
     ----------
-    start_point
+    orthomosaic
+        The orthomosaic from where the tile is taken.
+    Upper_left_corner
+        The pixel coordinate from the orthomosaic of the upper left corner of the tile in (columns, rows).
     position
-    height
+        Tile position in orthomosaic in number of tile in (columns, rows).
     width
-    resolution
-    crs
-    left
-    top
+        Tile width.
+    height
+        Tile height.
+    overlap
+        Overlap in percentage of width and height.
+    number
     """
 
     def __init__(
         self,
         orthomosaic: pathlib.Path,
-        start_point: tuple[int, int],
-        position: list[int],
-        height: float,
+        Upper_left_corner: tuple[int, int],
+        position: tuple[int, int],
         width: float,
-        resolution: tuple[float, float],
-        crs: rasterio.CRS,
-        left: float,
-        top: float,
+        height: float,
+        overlap: float = 0.01,
+        number: int = 0,
     ):
         # Data for the tile
         self.orthomosaic = orthomosaic
-        self.size = (height, width)
+        self.size = (width, height)
         self.tile_position = position
-        self.ulc = start_point
-        self.lrc = (start_point[0] + height, start_point[1] + width)
-        self.processing_range: list[list[float]] = [[0, 0], [0, 0]]
-        self.resolution = (resolution[1], resolution[0])
-        self.crs = crs
-        self.left = left
-        self.top = top
-        self.ulc_global = [
-            self.top - (self.ulc[0] * self.resolution[0]),
-            self.left + (self.ulc[1] * self.resolution[1]),
-        ]
-        self.transform = Affine.translation(
-            self.ulc_global[1] + self.resolution[1] / 2, self.ulc_global[0] - self.resolution[0] / 2
-        ) * Affine.scale(self.resolution[1], -self.resolution[0])
-        self.range: list[list[float]] | None = None
-        self.tile_number: int = 0
+        self.ulc = Upper_left_corner
+        self.overlap = overlap
+        self.tile_number = number
         """The tile number."""
         self.output: NDArray[Any] = np.zeros(0)
         """np.ndarray : processed output of tile to save for later use."""
+        self.set_tile_data_from_orthomosaic()
+
+    def set_tile_data_from_orthomosaic(self) -> None:
+        """Read data about the tile from the orthomosaic."""
+        try:
+            with rasterio.open(self.orthomosaic) as src:
+                self.ortho_cols = src.width
+                self.ortho_rows = src.height
+                self.resolution = src.res
+                self.crs = src.crs
+                left = src.bounds[0]
+                top = src.bounds[3]
+                transform = src.transform
+        except rasterio.RasterioIOError as e:
+            raise OSError(f"Could not open the orthomosaic at '{self.orthomosaic}'") from e
+        self.ulc_global = [
+            left + (self.ulc[0] * self.resolution[0]),
+            top - (self.ulc[1] * self.resolution[1]),
+        ]
+        self._set_window_with_overlap()
+        self.transform = rasterio.windows.transform(self.window, transform)
+
+    def _set_window_with_overlap(self):
+        pixel_overlap_width = int(self.size[0] * self.overlap)
+        pixel_overlap_hight = int(self.size[1] * self.overlap)
+        start_col = self.ulc[0] - pixel_overlap_width
+        stop_col = self.ulc[0] + self.size[0] + pixel_overlap_width
+        start_row = self.ulc[1] - pixel_overlap_hight
+        stop_row = self.ulc[1] + self.size[1] + pixel_overlap_hight
+        if start_col < 0:
+            start_col = 0
+        if stop_col > self.ortho_cols:
+            stop_col = self.ortho_cols
+        if start_row < 0:
+            start_row = 0
+        if stop_row > self.ortho_rows:
+            stop_row = self.ortho_rows
+        self.window = Window.from_slices(
+            (start_row, stop_row),
+            (start_col, stop_col),
+        )
 
     def read_tile(self) -> NDArray[Any]:
         """Read the tiles image data from the orthomosaic."""
         with rasterio.open(self.orthomosaic) as src:
-            window = Window.from_slices(
-                (self.ulc[0], self.lrc[0]),
-                (self.ulc[1], self.lrc[1]),
-            )
-            img: NDArray[Any] = src.read(window=window)
-            mask = src.read_masks(window=window)
+            img: NDArray[Any] = src.read(window=self.window)
+            mask = src.read_masks(window=self.window)
             self.mask = mask[0]
             for band in range(mask.shape[0]):
                 self.mask = self.mask & mask[band]
@@ -90,18 +116,17 @@ class Tile:
             output_tile_filename,
             "w",
             driver="GTiff",
-            # nodata=255,
             res=self.resolution,
-            height=self.size[0],
-            width=self.size[1],
+            width=image.shape[1],
+            height=image.shape[2],
             count=image.shape[0],
             dtype=image.dtype,
             crs=self.crs,
             transform=self.transform,
         ) as new_dataset:
-            # output = np.where(self.mask > 0, image, 255)
             new_dataset.write(image)
-            # new_dataset.write_mask(self.mask)
+            if image.shape[0] == 1:
+                new_dataset.write_mask(self.mask)
 
 
 class OrthomosaicTiles:
@@ -158,60 +183,24 @@ class OrthomosaicTiles:
                     specified_tiles.append(tile_list[tile_number])
         return specified_tiles
 
-    def get_tiles(self) -> list[Tile]:
+    def get_orthomosaic_size(self) -> tuple[int, int]:
         """
-        Generate a list of tiles to process, including a padding region around
-        the actual tile.
-        Takes care of edge cases, where the tile does not have adjacent tiles in
-        all directions.
-        """
-        tiles, st_width, st_height = self._define_tiles()
-        no_r = np.max([t.tile_position[0] for t in tiles])
-        no_c = np.max([t.tile_position[1] for t in tiles])
-        half_overlap_c = (self.tile_size - st_width) / 2
-        half_overlap_r = (self.tile_size - st_height) / 2
-        for tile_number, tile in enumerate(tiles):
-            tile.tile_number = tile_number
-            tile.range = [
-                [half_overlap_r, self.tile_size - half_overlap_r],
-                [half_overlap_c, self.tile_size - half_overlap_c],
-            ]
-            if tile.tile_position[0] == 0:
-                tile.range[0][0] = 0
-            if tile.tile_position[0] == no_r:
-                tile.range[0][1] = self.tile_size
-            if tile.tile_position[1] == 0:
-                tile.range[0][0] = 0
-            if tile.tile_position[1] == no_c:
-                tile.range[0][1] = self.tile_size
-        return tiles
-
-    def get_orthomosaic_data(self) -> tuple[int, int, tuple[float, float], rasterio.CRS, float, float]:
-        """
-        Read data from orthomosaic.
+        Read size from orthomosaic.
 
         Returns
         -------
         columns : int
         rows : int
-        resolution : tuple[float, float]
-        crs : rasterio.CRS
-        left_corner : float
-        top_corner : float
         """
         try:
             with rasterio.open(self.orthomosaic) as src:
                 columns = src.width
                 rows = src.height
-                resolution = src.res
-                crs = src.crs
-                left = src.bounds[0]
-                top = src.bounds[3]
         except rasterio.RasterioIOError as e:
-            raise OSError(f"Could not open the orthomsaic at '{self.orthomosaic}'") from e
-        return columns, rows, resolution, crs, left, top
+            raise OSError(f"Could not open the orthomosaic at '{self.orthomosaic}'") from e
+        return columns, rows
 
-    def _define_tiles(self) -> tuple[list[Tile], int, int]:
+    def get_tiles(self) -> list[Tile]:
         """
         Given a path to an orthomosaic, create a list of tiles which covers the
         orthomosaic with a specified overlap, height and width.
@@ -219,58 +208,43 @@ class OrthomosaicTiles:
         Returns
         -------
         list of tiles : list[Tile]
-        step width : int
-        step height : int
         """
-        columns, rows, resolution, crs, left, top = self.get_orthomosaic_data()
-        last_position = (rows - self.tile_size, columns - self.tile_size)
-        n_height = np.ceil(rows / (self.tile_size * (1 - self.overlap))).astype(int)
-        n_width = np.ceil(columns / (self.tile_size * (1 - self.overlap))).astype(int)
-        step_height = np.trunc(last_position[0] / (n_height - 1)).astype(int)
-        step_width = np.trunc(last_position[1] / (n_width - 1)).astype(int)
+        columns, rows = self.get_orthomosaic_size()
+        n_height = np.ceil(rows / self.tile_size).astype(int)
+        n_width = np.ceil(columns / self.tile_size).astype(int)
         tiles = []
         for r in range(0, n_height):
             for c in range(0, n_width):
-                pos = [r, c]
-                if r == (n_height - 1):
-                    tile_r = last_position[0]
-                else:
-                    tile_r = r * step_height
-                if c == (n_width - 1):
-                    tile_c = last_position[1]
-                else:
-                    tile_c = c * step_width
+                pos = (c, r)
+                number = r * n_width + c
+                tile_c = c * self.tile_size
+                tile_r = r * self.tile_size
                 tiles.append(
                     Tile(
                         self.orthomosaic,
-                        (tile_r, tile_c),
+                        (tile_c, tile_r),
                         pos,
                         self.tile_size,
                         self.tile_size,
-                        resolution,
-                        crs,
-                        left,
-                        top,
+                        self.overlap,
+                        number,
                     )
                 )
-        return tiles, step_width, step_height
+        return tiles
 
     def save_orthomosaic_from_tile_output(self, orthomosaic_filename: pathlib.Path) -> None:
         """Save an orthomosaic from the processed tiles."""
         if not orthomosaic_filename.parent.exists():
             orthomosaic_filename.parent.mkdir(parents=True)
+        output_count = self.tiles[0].output.shape[0]
         with rasterio.open(self.orthomosaic) as src:
             profile = src.profile
-            # profile["nodata"] = 255
+            profile["count"] = output_count
             overview_factors = src.overviews(src.indexes[0])
         with rasterio.open(orthomosaic_filename, "w", **profile) as dst:
             for tile in self.tiles:
-                window = Window.from_slices(
-                    (tile.ulc[0], tile.lrc[0]),
-                    (tile.ulc[1], tile.lrc[1]),
-                )
-                # output = np.where(tile.mask > 0, tile.output, 255)
-                dst.write(tile.output, window=window)
-                # dst.write_mask(tile.mask, window=window)
+                dst.write(tile.output, window=tile.window)
+                if output_count == 1:
+                    dst.write_mask(tile.mask, window=tile.window)
         with rasterio.open(orthomosaic_filename, "r+") as dst:
             dst.build_overviews(overview_factors, Resampling.average)
