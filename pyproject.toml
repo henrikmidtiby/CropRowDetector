@@ -3,7 +3,7 @@ requires = ["hatchling"]
 build-backend = "hatchling.build"
 
 [project]
-name = "CRD"
+name = "crop-row-detector"
 dynamic = ["version"]
 authors = [
   { name="Henrik Skov Midtiby", email="hemi@mmmi.sdu.dk" },
@@ -69,13 +69,13 @@ docs = [
 ]
 
 [project.scripts]
-CRD = "CRD.__main__:_main"
+crop-row-detector = "crop_row_detector.__main__:_main"
 
 [tool.hatch.version]
-path = "src/CRD/__init__.py"
+path = "src/crop_row_detector/__init__.py"
 
 [tool.pytest.ini_options]
-addopts = "--cov=CRD --cov-report html:test_coverage"
+addopts = "--cov=crop_row_detector --cov-report html:test_coverage"
 
 [tool.codespell]
 check-hidden = true

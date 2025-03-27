@@ -18,7 +18,7 @@ from tqdm import tqdm
 from tqdm.contrib.concurrent import process_map
 
 
-class crop_row_detector:
+class CropRowDetector:
     def __init__(self):
         self.output_location: Path | None = None
         self.generate_debug_images = False
@@ -447,7 +447,19 @@ class crop_row_detector:
                 )
         DF_row_information = pd.DataFrame(
             row_information,
-            columns=["tile", "x_position", "y_position", "angle", "row", "x_start", "y_start", "x_end", "y_end", "x_mid", "y_mid"],
+            columns=[
+                "tile",
+                "x_position",
+                "y_position",
+                "angle",
+                "row",
+                "x_start",
+                "y_start",
+                "x_end",
+                "y_end",
+                "x_mid",
+                "y_mid",
+            ],
         )
         DF_row_information.to_csv(self.output_location.joinpath("row_information_global.csv"))
 

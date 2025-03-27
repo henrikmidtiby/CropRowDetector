@@ -5,8 +5,7 @@ import os
 import pathlib
 from copy import deepcopy
 
-from CRD.crop_row_detector import crop_row_detector
-from CRD.orthomosaic_tiler import OrthomosaicTiles
+from crop_row_detector import CropRowDetector, OrthomosaicTiles
 
 
 def parse_cmd_arguments():
@@ -129,7 +128,7 @@ def init_tile_separator(args):
 
 def run_crop_row_detector(segmented_tiler, plot_tiler, args):
     # Initialize the crop row detector
-    crd = crop_row_detector()
+    crd = CropRowDetector()
     crd.output_location = args.output_tile_location
     crd.generate_debug_images = args.generate_debug_images
     crd.tile_boundary = args.tile_boundary

@@ -17,10 +17,10 @@ python3.10 -m venv venv
 source venv/bin/activate
 ```
 
-3. Install the requiret python packages:
+3. Install the required python packages:
 
 ```
-pip install -e[dev]
+pip install -e .[dev]
 ```
 
 4. Install pre-commit hooks
@@ -33,10 +33,10 @@ You are now ready to contribute.
 
 5. Running CLI
 
-The packages install a script which can be run with `CRD`. See
+The packages install a script which can be run with `crop-row-detector`. See
 
 ```
-CRD --help
+crop-row-detector --help
 ```
 
 For more info on how to use the CLI.
