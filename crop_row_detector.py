@@ -579,12 +579,14 @@ class crop_row_detector:
                         tile.ulc_global[0] - tile.resolution[1] * row[0][1],
                         tile.ulc_global[1] + tile.resolution[0] * row[1][0],
                         tile.ulc_global[0] - tile.resolution[1] * row[1][1],
+                        (2 * tile.ulc_global[1] + tile.resolution[0] * (row[0][0] + row[1][0])) / 2,
+                        (2 * tile.ulc_global[0] - tile.resolution[1] * (row[0][1] + row[1][1])) / 2,
                     ]
                 )
 
         DF_row_information = pd.DataFrame(
             row_information,
-            columns=["tile", "x_position", "y_position", "angle", "row", "x_start", "y_start", "x_end", "y_end"],
+            columns=["tile", "x_position", "y_position", "angle", "row", "x_start", "y_start", "x_end", "y_end", "x_mid", "y_mid"],
         )
 
         csv_path = tiles_segmented[0].output_tile_location
