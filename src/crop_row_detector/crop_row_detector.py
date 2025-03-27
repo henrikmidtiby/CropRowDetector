@@ -340,22 +340,32 @@ class CropRowDetector:
         bw_image = np.where(image < self.threshold_level, 255, 0)
         return bw_image
 
-    def detect_crop_rows_on_tiles(self, segmented_ortho_tiler, plot_ortho_tiler):
+    def detect_crop_rows_on_tiles(
+        self, segmented_ortho_tiler, plot_ortho_tiler, save_orthomosaic=True, save_tiles=False
+    ):
         segmented_tiles = segmented_ortho_tiler.tiles
         plot_tiles = plot_ortho_tiler.tiles
         start = time.time()
         if self.run_parallel:
             results = process_map(
-                self.detect_crop_rows, segmented_tiles, plot_tiles, chunksize=1, max_workers=self.max_workers
+                self.detect_crop_rows,
+                segmented_tiles,
+                plot_tiles,
+                chunksize=1,
+                max_workers=self.max_workers,
+                desc="Processing tiles",
+                unit="Tiles",
             )
         else:
             results = tqdm(map(self.detect_crop_rows, segmented_tiles, plot_tiles), total=len(segmented_tiles))
         print("Time to run all tiles: ", time.time() - start)
         results = list(results)
         plot_ortho_tiler.tiles = [tile for tile, _, _, _ in results]
-        plot_ortho_tiler.save_orthomosaic_from_tile_output(self.output_location.joinpath("crop_rows.tif"))
-        for tile in plot_ortho_tiler.tiles:
-            tile.save_tile(tile.output, self.output_location.joinpath("tiles"))
+        if save_orthomosaic:
+            plot_ortho_tiler.save_orthomosaic_from_tile_output(self.output_location.joinpath("crop_rows.tif"))
+        if save_tiles:
+            for tile in tqdm(plot_ortho_tiler.tiles, desc="Saving tiles", unit="Tiles"):
+                tile.save_tile(tile.output, self.output_location.joinpath("tiles"))
         self.create_csv_of_row_information(results)
         self.create_csv_of_row_information_global(results)
         vegetation_df = pd.concat([veg_df for _, _, _, veg_df in results])

@@ -36,6 +36,16 @@ def parse_cmd_arguments():
         help="The location in which to save the mahalanobis tiles.",
     )
     parser.add_argument(
+        "--do_not_save_orthomosaic",
+        action="store_false",
+        help="If set the no orthomosaic of the result is saved at output_location/orthomosaic.tiff. Default is to save orthomosaic.",
+    )
+    parser.add_argument(
+        "--save_tiles",
+        action="store_true",
+        help="If set tiles are saved at output_location/tiles. Useful for debugging or parameter tweaking. Default no tiles are saved.",
+    )
+    parser.add_argument(
         "--generate_debug_images",
         action="store_true",
         help="If set debug images will be generated. default is no debug images is generated.",
@@ -139,7 +149,9 @@ def run_crop_row_detector(segmented_tiler, plot_tiler, args):
     crd.threshold_level = 12
     crd.run_parallel = args.run_single_thread  # true if not set e.g. run in parallel
     crd.max_workers = args.max_workers
-    crd.detect_crop_rows_on_tiles(segmented_tiler, plot_tiler)
+    crd.detect_crop_rows_on_tiles(
+        segmented_tiler, plot_tiler, save_orthomosaic=args.do_not_save_orthomosaic, save_tiles=args.save_tiles
+    )
 
 
 def _main():
