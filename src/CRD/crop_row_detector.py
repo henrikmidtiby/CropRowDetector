@@ -192,28 +192,17 @@ class crop_row_detector:
         cv2.line(image, (line_ends[0][0], line_ends[0][1]), (line_ends[1][0], line_ends[1][1]), (0, 0, 255), 1)
         return image
 
-    def add_boundary_and_number_to_tile(self, image, tile_number):
+    def add_boundary_and_number_to_tile(self, image, boundary, tile_number):
         image = np.astype(image, np.uint8)  # without this opencv gives errors when trying to draw.
-        cv2.line(image, (0, 0), (image.shape[1] - 1, 0), (0, 0, 255), 1)
-        cv2.line(
-            image,
-            (0, image.shape[0] - 1),
-            (image.shape[1] - 1, image.shape[0] - 1),
-            (0, 0, 255),
-            1,
-        )
-        cv2.line(image, (0, 0), (0, image.shape[0] - 1), (0, 0, 255), 1)
-        cv2.line(
-            image,
-            (image.shape[1] - 1, 0),
-            (image.shape[1] - 1, image.shape[0] - 1),
-            (0, 0, 255),
-            1,
-        )
+        c1, c2, r1, r2 = boundary
+        cv2.line(image, (c1, r1), (c2 - 1, r1), (0, 0, 255), 1)
+        cv2.line(image, (c1, r2 - 1), (c2 - 1, r2 - 1), (0, 0, 255), 1)
+        cv2.line(image, (c1, r1), (c1, r2 - 1), (0, 0, 255), 1)
+        cv2.line(image, (c2 - 1, r1), (c2 - 1, r2 - 1), (0, 0, 255), 1)
         cv2.putText(
             image,
             str(tile_number),
-            (10, 30),
+            (c1 + 10, r1 + 30),
             cv2.FONT_HERSHEY_SIMPLEX,
             1,
             (0, 0, 255),
@@ -400,7 +389,10 @@ class crop_row_detector:
         )
         plot_image = self.plot_points_without_vegetation_on_crop_row(segmented_tile, plot_image, vegetation_df)
         if self.tile_boundary:
-            plot_image = self.add_boundary_and_number_to_tile(plot_image, tile_number=segmented_tile.tile_number)
+            boundary = plot_tile.get_window_pixels_boundary()
+            plot_image = self.add_boundary_and_number_to_tile(
+                plot_image, boundary, tile_number=segmented_tile.tile_number
+            )
         # tile_pairs[0].save_tile(image=tile_img_data.veg_img, output_tile_location=self.output_location)
         plot_image = cv2.cvtColor(plot_image, cv2.COLOR_BGR2RGB)
         plot_image_original[:3, :, :] = np.moveaxis(plot_image, -1, 0)

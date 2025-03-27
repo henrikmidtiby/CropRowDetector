@@ -66,19 +66,19 @@ class Tile:
                 self.crs = src.crs
                 left = src.bounds[0]
                 top = src.bounds[3]
-                transform = src.transform
+                self.overlapped_window = self._get_window(overlap=self.overlap)
+                self.window = self._get_window(overlap=0)
+                self.transform = src.window_transform(self.overlapped_window)
         except rasterio.RasterioIOError as e:
             raise OSError(f"Could not open the orthomosaic at '{self.orthomosaic}'") from e
         self.ulc_global = [
             left + (self.ulc[0] * self.resolution[0]),
             top - (self.ulc[1] * self.resolution[1]),
         ]
-        self._set_window_with_overlap()
-        self.transform = rasterio.windows.transform(self.window, transform)
 
-    def _set_window_with_overlap(self):
-        pixel_overlap_width = int(self.size[0] * self.overlap)
-        pixel_overlap_hight = int(self.size[1] * self.overlap)
+    def _get_window(self, overlap):
+        pixel_overlap_width = int(self.size[0] * overlap)
+        pixel_overlap_hight = int(self.size[1] * overlap)
         start_col = self.ulc[0] - pixel_overlap_width
         stop_col = self.ulc[0] + self.size[0] + pixel_overlap_width
         start_row = self.ulc[1] - pixel_overlap_hight
@@ -91,16 +91,28 @@ class Tile:
             start_row = 0
         if stop_row > self.ortho_rows:
             stop_row = self.ortho_rows
-        self.window = Window.from_slices(
+        window = Window.from_slices(
             (start_row, stop_row),
             (start_col, stop_col),
         )
+        return window
+
+    def get_window_pixels_boundary(self):
+        c1 = self.window.col_off - self.overlapped_window.col_off
+        r1 = self.window.row_off - self.overlapped_window.row_off
+        c2 = c1 + self.window.width
+        r2 = r1 + self.window.height
+        return c1, c2, r1, r2
+
+    def get_window_pixels(self, image):
+        c1, c2, r1, r2 = self.get_window_pixels_boundary()
+        return image[:, r1:r2, c1:c2]
 
     def read_tile(self) -> NDArray[Any]:
         """Read the tiles image data from the orthomosaic."""
         with rasterio.open(self.orthomosaic) as src:
-            img: NDArray[Any] = src.read(window=self.window)
-            mask = src.read_masks(window=self.window)
+            img: NDArray[Any] = src.read(window=self.overlapped_window)
+            mask = src.read_masks(window=self.overlapped_window)
             self.mask = mask[0]
             for band in range(mask.shape[0]):
                 self.mask = self.mask & mask[band]
@@ -117,8 +129,8 @@ class Tile:
             "w",
             driver="GTiff",
             res=self.resolution,
-            width=image.shape[1],
-            height=image.shape[2],
+            width=image.shape[2],
+            height=image.shape[1],
             count=image.shape[0],
             dtype=image.dtype,
             crs=self.crs,
@@ -246,8 +258,10 @@ class OrthomosaicTiles:
             overview_factors = src.overviews(src.indexes[0])
         with rasterio.open(orthomosaic_filename, "w", **profile) as dst:
             for tile in self.tiles:
-                dst.write(tile.output, window=tile.window)
+                output = tile.get_window_pixels(tile.output)
+                dst.write(output, window=tile.window)
                 if output_count == 1:
-                    dst.write_mask(tile.mask, window=tile.window)
+                    mask = tile.get_window_pixels(tile.mask)
+                    dst.write_mask(mask, window=tile.window)
         with rasterio.open(orthomosaic_filename, "r+") as dst:
             dst.build_overviews(overview_factors, Resampling.average)
