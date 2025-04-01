@@ -240,7 +240,7 @@ class CropRowDetector:
         if int(x1) >= 0 and int(x1) <= image_shape[1]:
             line_ends.append([int(x1), image_shape[0]])
         if int(y1) >= 0 and int(y1) <= image_shape[0]:
-            line_ends.append([image_shape[0], int(y1)])
+            line_ends.append([image_shape[1], int(y1)])
         try:
             if line_ends[0][0] > line_ends[1][0]:
                 line_ends = [line_ends[1], line_ends[0]]
