@@ -149,7 +149,7 @@ class OrthomosaicTiles:
     ----------
     orthomosaic
     tile_size
-        tile size in pixels.
+        tile size in pixels. Either a tuple with (width, height) or integer for square tiles.
     overlap
         How much the tiles should overlap in percentage of the tile size.
     run_specific_tile
@@ -162,13 +162,16 @@ class OrthomosaicTiles:
         self,
         *,
         orthomosaic: pathlib.Path,
-        tile_size: int,
+        tile_size: int | tuple[int, int],
         overlap: float = 0,
         run_specific_tile: list[int] | None = None,
         run_specific_tileset: list[int] | None = None,
     ):
         self.orthomosaic = orthomosaic
-        self.tile_size = tile_size
+        if type(tile_size) is tuple:
+            self.tile_size = tile_size
+        else:
+            self.tile_size = (tile_size, tile_size)
         self.overlap = overlap
         self.run_specific_tile = run_specific_tile
         self.run_specific_tileset = run_specific_tileset
@@ -225,22 +228,22 @@ class OrthomosaicTiles:
         list of tiles : list[Tile]
         """
         columns, rows = self.get_orthomosaic_size()
-        n_height = np.ceil(rows / self.tile_size).astype(int)
-        n_width = np.ceil(columns / self.tile_size).astype(int)
+        n_height = np.ceil(rows / self.tile_size[1]).astype(int)
+        n_width = np.ceil(columns / self.tile_size[0]).astype(int)
         tiles = []
         for r in range(0, n_height):
             for c in range(0, n_width):
                 pos = (c, r)
                 number = r * n_width + c
-                tile_c = c * self.tile_size
-                tile_r = r * self.tile_size
+                tile_c = c * self.tile_size[0]
+                tile_r = r * self.tile_size[1]
                 tiles.append(
                     Tile(
                         self.orthomosaic,
                         (tile_c, tile_r),
                         pos,
-                        self.tile_size,
-                        self.tile_size,
+                        self.tile_size[0],
+                        self.tile_size[1],
                         self.overlap,
                         number,
                     )

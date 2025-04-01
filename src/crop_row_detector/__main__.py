@@ -18,7 +18,8 @@ def parse_cmd_arguments():
     )
     parser.add_argument(
         "--tile_size",
-        default=3000,
+        default=500,
+        nargs="+",
         type=int,
         help="The height and width of tiles that are analyzed. Default is %(default).",
     )
@@ -113,10 +114,16 @@ def parse_cmd_arguments():
 
 
 def init_tile_separator(args):
+    if len(args.tile_size) == 1:
+        tile_size = args.tile_size[0]
+    elif len(args.tile_size) == 2:
+        tile_size = tuple(args.tile_size)
+    else:
+        raise Exception("Tiles size must be 1 or 2 integers.")
     # Initialize the tile separator
     segmented_tiler = OrthomosaicTiles(
         orthomosaic=args.segmented_orthomosaic,
-        tile_size=args.tile_size,
+        tile_size=tile_size,
         overlap=args.tile_overlap,
         run_specific_tile=args.run_specific_tile,
         run_specific_tileset=args.run_specific_tileset,
@@ -127,7 +134,7 @@ def init_tile_separator(args):
     else:
         plot_tiler = OrthomosaicTiles(
             orthomosaic=args.orthomosaic,
-            tile_size=args.tile_size,
+            tile_size=tile_size,
             overlap=args.tile_overlap,
             run_specific_tile=args.run_specific_tile,
             run_specific_tileset=args.run_specific_tileset,
