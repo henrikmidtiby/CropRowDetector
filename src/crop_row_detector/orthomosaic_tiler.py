@@ -30,7 +30,7 @@ class Tile:
     height
         Tile height.
     overlap
-        Overlap in percentage of width and height.
+        Overlap as a fraction of width and height.
     number
     """
 
@@ -41,7 +41,7 @@ class Tile:
         position: tuple[int, int],
         width: float,
         height: float,
-        overlap: float = 0.01,
+        overlap: float = 0.0,
         number: int = 0,
     ):
         # Data for the tile
@@ -76,7 +76,7 @@ class Tile:
             top - (self.ulc[1] * self.resolution[1]),
         ]
 
-    def _get_window(self, overlap):
+    def _get_window(self, overlap: float) -> Window:
         pixel_overlap_width = int(self.size[0] * overlap)
         pixel_overlap_hight = int(self.size[1] * overlap)
         start_col = self.ulc[0] - pixel_overlap_width
@@ -97,14 +97,25 @@ class Tile:
         )
         return window
 
-    def get_window_pixels_boundary(self):
+    def get_window_pixels_boundary(self) -> tuple[int, int, int, int]:
+        """
+        Get the tiles boundary without the overlap.
+
+        Returns
+        -------
+        start_column : int
+        stop_column : int
+        start_row : int
+        stop_row : int
+        """
         c1 = self.window.col_off - self.overlapped_window.col_off
         r1 = self.window.row_off - self.overlapped_window.row_off
         c2 = c1 + self.window.width
         r2 = r1 + self.window.height
         return c1, c2, r1, r2
 
-    def get_window_pixels(self, image):
+    def get_window_pixels(self, image) -> NDArray[Any]:
+        """Get pixels from tile without overlap."""
         c1, c2, r1, r2 = self.get_window_pixels_boundary()
         return image[:, r1:r2, c1:c2]
 
@@ -151,7 +162,7 @@ class OrthomosaicTiles:
     tile_size
         tile size in pixels. Either a tuple with (width, height) or integer for square tiles.
     overlap
-        How much the tiles should overlap in percentage of the tile size.
+        How much the tiles should overlap as a fraction of the tile size.
     run_specific_tile
         List of tiles to run e.g. [15, 65] runs tiles 15 and 65.
     run_specific_tileset
@@ -228,8 +239,8 @@ class OrthomosaicTiles:
         list of tiles : list[Tile]
         """
         columns, rows = self.get_orthomosaic_size()
-        n_height = np.ceil(rows / self.tile_size[1]).astype(int)
         n_width = np.ceil(columns / self.tile_size[0]).astype(int)
+        n_height = np.ceil(rows / self.tile_size[1]).astype(int)
         tiles = []
         for r in range(0, n_height):
             for c in range(0, n_width):
