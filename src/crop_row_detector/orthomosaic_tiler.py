@@ -4,12 +4,9 @@ from __future__ import annotations
 
 import os
 import pathlib
-from typing import Any
 
 import numpy as np
 import rasterio
-from numpy.typing import NDArray
-from rasterio.enums import Resampling
 from rasterio.windows import Window
 
 
@@ -32,6 +29,7 @@ class Tile:
     overlap
         Overlap as a fraction of width and height.
     number
+        Used to identify tiles.
     """
 
     def __init__(
@@ -51,12 +49,14 @@ class Tile:
         self.ulc = Upper_left_corner
         self.overlap = overlap
         self.tile_number = number
-        """The tile number."""
-        self.output: NDArray[Any] = np.zeros(0)
-        """np.ndarray : processed output of tile to save for later use."""
-        self.set_tile_data_from_orthomosaic()
+        """The tile number. Useful for identification."""
+        windows = self.set_tile_data_from_orthomosaic()
+        self.window: Window = windows[0]
+        """Window specifying the region of the orthomosaic for this tile."""
+        self.window_with_overlap: Window = windows[1]
+        """Window specifying the region of the orthomosaic for this tile with overlap of neighboring tiles."""
 
-    def set_tile_data_from_orthomosaic(self) -> None:
+    def set_tile_data_from_orthomosaic(self) -> tuple[Window, Window]:
         """Read data about the tile from the orthomosaic."""
         try:
             with rasterio.open(self.orthomosaic) as src:
@@ -66,15 +66,16 @@ class Tile:
                 self.crs = src.crs
                 left = src.bounds[0]
                 top = src.bounds[3]
-                self.overlapped_window = self._get_window(overlap=self.overlap)
-                self.window = self._get_window(overlap=0)
-                self.transform = src.window_transform(self.overlapped_window)
+                window_with_overlap = self._get_window(overlap=self.overlap)
+                window = self._get_window(overlap=0)
+                self.transform = src.window_transform(window_with_overlap)
         except rasterio.RasterioIOError as e:
             raise OSError(f"Could not open the orthomosaic at '{self.orthomosaic}'") from e
         self.ulc_global = [
             left + (self.ulc[0] * self.resolution[0]),
             top - (self.ulc[1] * self.resolution[1]),
         ]
+        return window, window_with_overlap
 
     def _get_window(self, overlap: float) -> Window:
         pixel_overlap_width = int(self.size[0] * overlap)
@@ -108,30 +109,36 @@ class Tile:
         start_row : int
         stop_row : int
         """
-        c1 = self.window.col_off - self.overlapped_window.col_off
-        r1 = self.window.row_off - self.overlapped_window.row_off
+        c1 = self.window.col_off - self.window_with_overlap.col_off
+        r1 = self.window.row_off - self.window_with_overlap.row_off
         c2 = c1 + self.window.width
         r2 = r1 + self.window.height
         return c1, c2, r1, r2
 
-    def get_window_pixels(self, image) -> NDArray[Any]:
+    def get_window_pixels(self, image: np.ndarray) -> np.ndarray:
         """Get pixels from tile without overlap."""
         c1, c2, r1, r2 = self.get_window_pixels_boundary()
         return image[:, r1:r2, c1:c2]
 
-    def read_tile(self) -> NDArray[Any]:
-        """Read the tiles image data from the orthomosaic."""
+    def read_tile(self, with_overlap: bool = True) -> tuple[np.ndarray, np.ndarray]:
+        """
+        Read the tiles image data from the orthomosaic.
+        If with_overlap is true a window with a border around the tile is used.
+        """
+        if with_overlap:
+            window = self.window_with_overlap
+        else:
+            window = self.window
         with rasterio.open(self.orthomosaic) as src:
-            img: NDArray[Any] = src.read(window=self.overlapped_window)
-            mask = src.read_masks(window=self.overlapped_window)
+            img: np.ndarray = src.read(window=window)
+            mask: np.ndarray = src.read_masks(window=window)
             self.mask = mask[0]
             for band in range(mask.shape[0]):
                 self.mask = self.mask & mask[band]
-        return img
+        return img, mask
 
-    def save_tile(self, image: NDArray[Any], output_tile_location: pathlib.Path) -> None:
+    def save_tile(self, image: np.ndarray, mask: np.ndarray, output_tile_location: pathlib.Path) -> None:
         """Save the image of the tile to a tiff file. Filename is the tile number."""
-        self.output = image
         if not output_tile_location.is_dir():
             os.makedirs(output_tile_location)
         output_tile_filename = output_tile_location.joinpath(f"{self.tile_number:05d}.tiff")
@@ -149,7 +156,7 @@ class Tile:
         ) as new_dataset:
             new_dataset.write(image)
             if image.shape[0] == 1:
-                new_dataset.write_mask(self.mask)
+                new_dataset.write_mask(mask)
 
 
 class OrthomosaicTiles:
@@ -181,8 +188,10 @@ class OrthomosaicTiles:
         self.orthomosaic = orthomosaic
         if type(tile_size) is tuple:
             self.tile_size = tile_size
-        else:
+        elif type(tile_size) is int:
             self.tile_size = (tile_size, tile_size)
+        else:
+            raise TypeError("Tile size must be int or tuple(int, int).")
         self.overlap = overlap
         self.run_specific_tile = run_specific_tile
         self.run_specific_tileset = run_specific_tileset
@@ -260,22 +269,3 @@ class OrthomosaicTiles:
                     )
                 )
         return tiles
-
-    def save_orthomosaic_from_tile_output(self, orthomosaic_filename: pathlib.Path) -> None:
-        """Save an orthomosaic from the processed tiles."""
-        if not orthomosaic_filename.parent.exists():
-            orthomosaic_filename.parent.mkdir(parents=True)
-        output_count = self.tiles[0].output.shape[0]
-        with rasterio.open(self.orthomosaic) as src:
-            profile = src.profile
-            profile["count"] = output_count
-            overview_factors = src.overviews(src.indexes[0])
-        with rasterio.open(orthomosaic_filename, "w", **profile) as dst:
-            for tile in self.tiles:
-                output = tile.get_window_pixels(tile.output)
-                dst.write(output, window=tile.window)
-                if output_count == 1:
-                    mask = tile.get_window_pixels(tile.mask)
-                    dst.write_mask(mask, window=tile.window)
-        with rasterio.open(orthomosaic_filename, "r+") as dst:
-            dst.build_overviews(overview_factors, Resampling.average)

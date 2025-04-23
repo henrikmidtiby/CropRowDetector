@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import os
-import time
+import threading
 from datetime import datetime
 from pathlib import Path
 
@@ -9,13 +9,16 @@ import cv2
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
+import rasterio
 from pybaselines import Baseline
+from rasterio.enums import Resampling
 from scipy.signal import find_peaks
 
 # import hough_transform_grayscale # This is a custom implementation of the hough transform
 from skimage.transform import hough_line
-from tqdm import tqdm
-from tqdm.contrib.concurrent import process_map
+from tqdm.contrib.concurrent import thread_map
+
+from crop_row_detector.orthomosaic_tiler import Tile
 
 
 class CropRowDetector:
@@ -340,45 +343,62 @@ class CropRowDetector:
         bw_image = np.where(image < self.threshold_level, 255, 0)
         return bw_image
 
-    def detect_crop_rows_on_tiles(
-        self, segmented_ortho_tiler, plot_ortho_tiler, save_orthomosaic=True, save_tiles=False
-    ):
+    def detect_crop_rows_on_tiles(self, segmented_ortho_tiler, plot_ortho_tiler, save_tiles=False):
         segmented_tiles = segmented_ortho_tiler.tiles
         plot_tiles = plot_ortho_tiler.tiles
-        start = time.time()
-        if self.run_parallel:
-            results = process_map(
-                self.detect_crop_rows,
-                segmented_tiles,
-                plot_tiles,
-                chunksize=1,
-                max_workers=self.max_workers,
-                desc="Processing tiles",
-                unit="Tiles",
-            )
-        else:
-            results = tqdm(map(self.detect_crop_rows, segmented_tiles, plot_tiles), total=len(segmented_tiles))
-        print("Time to run all tiles: ", time.time() - start)
-        results = list(results)
-        plot_ortho_tiler.tiles = [tile for tile, _, _, _ in results]
-        if save_orthomosaic:
-            plot_ortho_tiler.save_orthomosaic_from_tile_output(self.output_location.joinpath("crop_rows.tif"))
-        if save_tiles:
-            for tile in tqdm(plot_ortho_tiler.tiles, desc="Saving tiles", unit="Tiles"):
-                tile.save_tile(tile.output, self.output_location.joinpath("tiles"))
-        self.create_csv_of_row_information(results)
-        self.create_csv_of_row_information_global(results)
-        vegetation_df = pd.concat([veg_df for _, _, _, veg_df in results])
+
+        if self.max_workers is None:
+            self.max_workers = 1
+        read_lock = threading.Lock()
+        write_lock = threading.Lock()
+        # process_lock = threading.Lock()
+        output_filename = self.output_location.joinpath("orthomosaic.tiff")
+        with (
+            rasterio.open(plot_ortho_tiler.orthomosaic) as plot_src,
+            rasterio.open(segmented_ortho_tiler.orthomosaic) as segmented_src,
+        ):
+            profile = plot_src.profile
+            overview_factors = plot_src.overviews(plot_src.indexes[0])
+            with rasterio.open(output_filename, "w", **profile) as dst:
+
+                def process(segmented_tile: Tile, plot_tile: Tile) -> None:
+                    with read_lock:
+                        segmented_img = segmented_src.read(window=segmented_tile.window_with_overlap)
+                        plot_img = plot_src.read(window=plot_tile.window_with_overlap)
+                        mask_temp = plot_src.read_masks(window=plot_tile.window_with_overlap)
+                    mask = mask_temp[0]
+                    for band in range(mask_temp.shape[0]):
+                        mask = mask & mask_temp[band]
+                    output_img, direction, vegetation_lines, vegetation_df = self.detect_crop_rows(
+                        segmented_img, segmented_tile, plot_img, plot_tile
+                    )
+                    output = plot_tile.get_window_pixels(output_img)
+                    mask = plot_tile.get_window_pixels(np.expand_dims(mask, 0)).squeeze()
+                    if save_tiles:
+                        plot_tile.save_tile(output_img, mask, self.output_location.joinpath("tiles"))
+                    with write_lock:
+                        dst.write(output, window=plot_tile.window)
+                        dst.write_mask(mask, window=plot_tile.window)
+                    return direction, vegetation_lines, vegetation_df
+
+                results = thread_map(process, segmented_tiles, plot_tiles, max_workers=self.max_workers)
+
+        with rasterio.open(output_filename, "r+") as dst:
+            dst.build_overviews(overview_factors, Resampling.average)
+        directions = [direction for direction, _, _ in results]
+        vegetation_lines_list = [veg for _, veg, _ in results]
+        vegetation_df = pd.concat([veg_df for _, _, veg_df in results])
+        self.create_csv_of_row_information(plot_tiles, directions, vegetation_lines_list)
+        self.create_csv_of_row_information_global(plot_tiles, directions, vegetation_lines_list)
         self.vegetation_row_to_csv(vegetation_df)
+        # TODO save csvs
         # self.save_statistics(args, total_results)
         # TODO sort stat save out
 
-    def detect_crop_rows(self, segmented_tile, plot_tile):
+    def detect_crop_rows(self, segmented_image, segmented_tile, plot_image_original, plot_tile):
         # self.load_tile_with_data_needed_for_crop_row_detection(tile_pairs[0])
         # tile_img_data = self.combine_segmented_and_original_tile(tile_pairs[0], tile_pairs[1])
         # TODO image shapes and look at comments
-        segmented_image = segmented_tile.read_tile()
-        plot_image_original = plot_tile.read_tile()
         assert segmented_image.shape[0] == 1, "The segmented image has more then one color channel."
         assert plot_tile.ulc == segmented_tile.ulc, "The two tiles are not the same location."
         segmented_image = np.squeeze(segmented_image)
@@ -406,12 +426,11 @@ class CropRowDetector:
         # tile_pairs[0].save_tile(image=tile_img_data.veg_img, output_tile_location=self.output_location)
         plot_image = cv2.cvtColor(plot_image, cv2.COLOR_BGR2RGB)
         plot_image_original[:3, :, :] = np.moveaxis(plot_image, -1, 0)
-        plot_tile.output = plot_image_original
-        return plot_tile, direction, vegetation_lines, vegetation_df
+        return plot_image_original, direction, vegetation_lines, vegetation_df
 
-    def create_csv_of_row_information(self, processing_results):
+    def create_csv_of_row_information(self, tiles, directions, vegetation_lines_list):
         row_information = []
-        for tile, direction, vegetation_lines, _ in processing_results:
+        for tile, direction, vegetation_lines in zip(tiles, directions, vegetation_lines_list, strict=False):
             if direction < 0:
                 direction = np.pi + direction
             for row_number, row in enumerate(vegetation_lines):
@@ -434,9 +453,9 @@ class CropRowDetector:
         )
         row_information_df.to_csv(self.output_location.joinpath("row_information.csv"))
 
-    def create_csv_of_row_information_global(self, processing_results):
+    def create_csv_of_row_information_global(self, tiles, directions, vegetation_lines_list):
         row_information = []
-        for tile, direction, vegetation_lines, _ in processing_results:
+        for tile, direction, vegetation_lines in zip(tiles, directions, vegetation_lines_list, strict=False):
             if direction < 0:
                 direction = np.pi + direction
             for row_number, row in enumerate(vegetation_lines):

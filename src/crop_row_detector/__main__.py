@@ -30,16 +30,11 @@ def parse_cmd_arguments():
         help="Percentage overlap between tiles in tile size. Added as padding making the actual tile size larger.",
     )
     parser.add_argument(
-        "--output_tile_location",
+        "--output_location",
         default="output/mahal",
         metavar="FILENAME",
         type=pathlib.Path,
         help="The location in which to save the mahalanobis tiles.",
-    )
-    parser.add_argument(
-        "--do_not_save_orthomosaic",
-        action="store_false",
-        help="If set the no orthomosaic of the result is saved at output_location/orthomosaic.tiff. Default is to save orthomosaic.",
     )
     parser.add_argument(
         "--save_tiles",
@@ -99,11 +94,6 @@ def parse_cmd_arguments():
         help="How many bins each degree is divided into. Default is 8.",
     )
     parser.add_argument(
-        "--run_single_thread",
-        action="store_false",
-        help="If set the program will run in as a single thread. Default is to run in parallel.",
-    )
-    parser.add_argument(
         "--max_workers",
         default=os.cpu_count(),
         type=int,
@@ -111,6 +101,11 @@ def parse_cmd_arguments():
     )
     args = parser.parse_args()
     return args
+
+
+def _create_output_location(output_directory: pathlib.Path) -> None:
+    if not os.path.isdir(output_directory):
+        os.makedirs(output_directory)
 
 
 def init_tile_separator(args):
@@ -146,7 +141,7 @@ def init_tile_separator(args):
 def run_crop_row_detector(segmented_tiler, plot_tiler, args):
     # Initialize the crop row detector
     crd = CropRowDetector()
-    crd.output_location = args.output_tile_location
+    crd.output_location = args.output_location
     crd.generate_debug_images = args.generate_debug_images
     crd.tile_boundary = args.tile_boundary
     crd.expected_crop_row_distance = args.expected_crop_row_distance
@@ -154,15 +149,13 @@ def run_crop_row_detector(segmented_tiler, plot_tiler, args):
     crd.max_crop_row_angle = args.max_angle
     crd.crop_row_angle_resolution = args.angle_resolution
     crd.threshold_level = 12
-    crd.run_parallel = args.run_single_thread  # true if not set e.g. run in parallel
     crd.max_workers = args.max_workers
-    crd.detect_crop_rows_on_tiles(
-        segmented_tiler, plot_tiler, save_orthomosaic=args.do_not_save_orthomosaic, save_tiles=args.save_tiles
-    )
+    crd.detect_crop_rows_on_tiles(segmented_tiler, plot_tiler, save_tiles=args.save_tiles)
 
 
 def _main():
     args = parse_cmd_arguments()
+    _create_output_location(args.output_location)
     segmented_tiler, plot_tiler = init_tile_separator(args)
     run_crop_row_detector(segmented_tiler, plot_tiler, args)
 
