@@ -99,6 +99,11 @@ def parse_cmd_arguments():
         type=int,
         help="Set the maximum number of workers. Default to number of cpus.",
     )
+    parser.add_argument(
+        "--use_process_pools",
+        action="store_true",
+        help="Use process pools instead of threads. This may come at an extra cost of memory but will be faster.",
+    )
     args = parser.parse_args()
     return args
 
@@ -150,7 +155,10 @@ def run_crop_row_detector(segmented_tiler, plot_tiler, args):
     crd.crop_row_angle_resolution = args.angle_resolution
     crd.threshold_level = 12
     crd.max_workers = args.max_workers
-    crd.detect_crop_rows_on_tiles(segmented_tiler, plot_tiler, save_tiles=args.save_tiles)
+    if args.use_process_pools:
+        crd.detect_crop_rows_on_tiles_with_process_pools(segmented_tiler, plot_tiler, save_tiles=args.save_tiles)
+    else:
+        crd.detect_crop_rows_on_tiles_with_threads(segmented_tiler, plot_tiler, save_tiles=args.save_tiles)
 
 
 def _main():
