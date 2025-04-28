@@ -433,9 +433,6 @@ class CropRowDetector:
 
         with rasterio.open(output_filename, "r+") as dst:
             dst.build_overviews(overview_factors, Resampling.average)
-        # TODO save csvs
-        # self.save_statistics(args, total_results)
-        # TODO sort stat save out
 
     def detect_crop_rows_on_tiles_with_process_pools(self, segmented_ortho_tiler, plot_ortho_tiler, save_tiles=False):
         segmented_tiles = segmented_ortho_tiler.tiles
@@ -467,9 +464,6 @@ class CropRowDetector:
         self.create_csv_of_row_information(plot_tiles, directions, vegetation_lines_list)
         self.create_csv_of_row_information_global(plot_tiles, directions, vegetation_lines_list)
         self.vegetation_row_to_csv(vegetation_df)
-        # TODO save csvs
-        # self.save_statistics(args, total_results)
-        # TODO sort stat save out
 
     def detect_crop_rows_as_process(self, segmented_tile: Tile, plot_tile: Tile, save_tiles=False):
         segmented_image, _ = segmented_tile.read_tile()
@@ -489,9 +483,6 @@ class CropRowDetector:
         return plot_tile, direction, vegetation_lines, vegetation_df
 
     def detect_crop_rows(self, segmented_image, segmented_tile, plot_image_original, plot_tile):
-        # self.load_tile_with_data_needed_for_crop_row_detection(tile_pairs[0])
-        # tile_img_data = self.combine_segmented_and_original_tile(tile_pairs[0], tile_pairs[1])
-        # TODO image shapes and look at comments
         assert segmented_image.shape[0] == 1, "The segmented image has more then one color channel."
         assert plot_tile.ulc == segmented_tile.ulc, "The two tiles are not the same location."
         segmented_image = np.squeeze(segmented_image)
@@ -516,7 +507,7 @@ class CropRowDetector:
             plot_image = self.add_boundary_and_number_to_tile(
                 plot_image, boundary, tile_number=segmented_tile.tile_number
             )
-        # tile_pairs[0].save_tile(image=tile_img_data.veg_img, output_tile_location=self.output_location)
+
         plot_image = cv2.cvtColor(plot_image, cv2.COLOR_BGR2RGB)
         plot_image_original[:3, :, :] = np.moveaxis(plot_image, -1, 0)
         return plot_image_original, direction, vegetation_lines, vegetation_df
@@ -659,19 +650,19 @@ class CropRowDetector:
         csv_path = self.output_location.joinpath("points_in_rows.csv")
         vegetation_df.to_csv(csv_path, index=False)
 
-    def save_statistics(self, args, tiles_segmented):
-        statistics_path = tiles_segmented[0].output_tile_location + "/statistics"
-        self.ensure_parent_directory_exist(statistics_path + "/output_file.txt")
+    def save_statistics(self, segmented_orthomosaic, orthomosaic, tile_size, number_of_tiles):
+        statistics_path = self.output_location.joinpath("statistics")
+        self.ensure_parent_directory_exist(statistics_path.joinpath("output_file.txt"))
         print(f'Writing statistics to the folder "{ statistics_path }"')
         with open(statistics_path + "/output_file.txt", "w") as f:
             f.write("Input parameters:\n")
-            f.write(f" - Segmented Orthomosaic: {args.segmented_orthomosaic}\n")
-            f.write(f" - Orthomosaic: {args.orthomosaic}\n")
-            f.write(f" - Tile sizes: {args.tile_size}\n")
-            f.write(f" - Output tile location: {args.output_tile_location}\n")
-            f.write(f" - Generated debug images: {args.generate_debug_images}\n")
-            f.write(f" - Tile boundary: {args.tile_boundary}\n")
-            f.write(f" - Ecpected crop row distance: {args.expected_crop_row_distance}\n")
+            f.write(f" - Segmented Orthomosaic: {segmented_orthomosaic}\n")
+            f.write(f" - Orthomosaic: {orthomosaic}\n")
+            f.write(f" - Tile sizes: {tile_size}\n")
+            f.write(f" - Output tile location: {self.tile_location}\n")
+            f.write(f" - Generated debug images: {self.generate_debug_images}\n")
+            f.write(f" - Tile boundary: {self.tile_boundary}\n")
+            f.write(f" - Expected crop row distance: {self.expected_crop_row_distance}\n")
             f.write(f" - Date and time of execution: {datetime.now().replace(microsecond=0)}\n")
             f.write("\n\nOutput from run\n")
-            f.write(f" - Number of tiles: {len(tiles_segmented)}\n")
+            f.write(f" - Number of tiles: {number_of_tiles}\n")

@@ -47,6 +47,11 @@ def parse_cmd_arguments():
         help="If set debug images will be generated. default is no debug images is generated.",
     )
     parser.add_argument(
+        "--save_statistics",
+        action="store_true",
+        help="If set statistics are saved at output_location.",
+    )
+    parser.add_argument(
         "--tile_boundary",
         action="store_true",
         help="if set will plot a boundary on each tile and the tile number on the tile. Default is no boundary and tile number.",
@@ -140,10 +145,10 @@ def init_tile_separator(args):
             run_specific_tileset=args.run_specific_tileset,
         )
         plot_tiler.divide_orthomosaic_into_tiles()
-    return segmented_tiler, plot_tiler
+    return segmented_tiler, plot_tiler, tile_size
 
 
-def run_crop_row_detector(segmented_tiler, plot_tiler, args):
+def run_crop_row_detector(segmented_tiler, plot_tiler, tile_size, args):
     # Initialize the crop row detector
     crd = CropRowDetector()
     crd.output_location = args.output_location
@@ -159,13 +164,15 @@ def run_crop_row_detector(segmented_tiler, plot_tiler, args):
         crd.detect_crop_rows_on_tiles_with_process_pools(segmented_tiler, plot_tiler, save_tiles=args.save_tiles)
     else:
         crd.detect_crop_rows_on_tiles_with_threads(segmented_tiler, plot_tiler, save_tiles=args.save_tiles)
+    if args.save_statistics:
+        crd.save_statistics(args.segmented_orthomosaic, args.orthomosaic, tile_size, len(plot_tiler.tiles))
 
 
 def _main():
     args = parse_cmd_arguments()
     _create_output_location(args.output_location)
-    segmented_tiler, plot_tiler = init_tile_separator(args)
-    run_crop_row_detector(segmented_tiler, plot_tiler, args)
+    segmented_tiler, plot_tiler, tile_size = init_tile_separator(args)
+    run_crop_row_detector(segmented_tiler, plot_tiler, tile_size, args)
 
 
 if __name__ == "__main__":
