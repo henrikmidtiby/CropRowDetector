@@ -348,11 +348,51 @@ class CropRowDetector:
         segmented_tiles = segmented_ortho_tiler.tiles
         plot_tiles = plot_ortho_tiler.tiles
 
+        # if csv files already exists give error
+        if os.path.isfile(self.output_location.joinpath("row_information.csv")):
+            raise FileExistsError("row_information.csv exists. Choose another output location or remove the file.")
+        else:
+            df = pd.DataFrame(
+                [], columns=["tile", "x_position", "y_position", "angle", "row", "x_start", "y_start", "x_end", "y_end"]
+            )
+            df.to_csv(self.output_location.joinpath("row_information.csv"), index=False)
+        if os.path.isfile(self.output_location.joinpath("row_information_global.csv")):
+            raise FileExistsError(
+                "row_information_global.csv exists. Choose another output location or remove the file."
+            )
+        else:
+            df = pd.DataFrame(
+                [],
+                columns=[
+                    "tile",
+                    "x_position",
+                    "y_position",
+                    "angle",
+                    "row",
+                    "x_start",
+                    "y_start",
+                    "x_end",
+                    "y_end",
+                    "x_mid",
+                    "y_mid",
+                ],
+            )
+            df.to_csv(self.output_location.joinpath("row_information_global.csv"), index=False)
+        if os.path.isfile(self.output_location.joinpath("points_in_rows.csv")):
+            raise FileExistsError("points_in_rows.csv exists. Choose another output location or remove the file.")
+        else:
+            df = pd.DataFrame([], columns=["tile", "row", "x", "y", "vegetation"])
+            df.to_csv(self.output_location.joinpath("points_in_rows.csv"), index=False)
+
         if self.max_workers is None:
             self.max_workers = 1
-        read_lock = threading.Lock()
+        read_segmented_lock = threading.Lock()
+        read_plot_lock = threading.Lock()
         write_lock = threading.Lock()
-        # process_lock = threading.Lock()
+        row_info_lock = threading.Lock()
+        row_info_global_lock = threading.Lock()
+        row_vegetation_lock = threading.Lock()
+        process_lock = threading.Lock()
         output_filename = self.output_location.joinpath("orthomosaic.tiff")
         with (
             rasterio.open(plot_ortho_tiler.orthomosaic) as plot_src,
@@ -363,16 +403,24 @@ class CropRowDetector:
             with rasterio.open(output_filename, "w", **profile) as dst:
 
                 def process(segmented_tile: Tile, plot_tile: Tile) -> None:
-                    with read_lock:
+                    with read_segmented_lock:
                         segmented_img = segmented_src.read(window=segmented_tile.window_with_overlap)
+                    with read_plot_lock:
                         plot_img = plot_src.read(window=plot_tile.window_with_overlap)
                         mask_temp = plot_src.read_masks(window=plot_tile.window_with_overlap)
                     mask = mask_temp[0]
                     for band in range(mask_temp.shape[0]):
                         mask = mask & mask_temp[band]
-                    output_img, direction, vegetation_lines, vegetation_df = self.detect_crop_rows(
-                        segmented_img, segmented_tile, plot_img, plot_tile
-                    )
+                    with process_lock:
+                        output_img, direction, vegetation_lines, vegetation_df = self.detect_crop_rows(
+                            segmented_img, segmented_tile, plot_img, plot_tile
+                        )
+                    with row_info_lock:
+                        self.append_to_csv_of_row_information(plot_tile, direction, vegetation_lines)
+                    with row_info_global_lock:
+                        self.append_to_csv_of_row_information_global(plot_tile, direction, vegetation_lines)
+                    with row_vegetation_lock:
+                        self.append_to_csv_vegetation_row(vegetation_df)
                     if save_tiles:
                         plot_tile.save_tile(output_img, mask, self.output_location.joinpath("tiles"))
                     output = plot_tile.get_window_pixels(output_img)
@@ -380,18 +428,11 @@ class CropRowDetector:
                     with write_lock:
                         dst.write(output, window=plot_tile.window)
                         dst.write_mask(mask, window=plot_tile.window)
-                    return direction, vegetation_lines, vegetation_df
 
-                results = thread_map(process, segmented_tiles, plot_tiles, max_workers=self.max_workers)
+                thread_map(process, segmented_tiles, plot_tiles, max_workers=self.max_workers)
 
         with rasterio.open(output_filename, "r+") as dst:
             dst.build_overviews(overview_factors, Resampling.average)
-        directions = [direction for direction, _, _ in results]
-        vegetation_lines_list = [veg for _, veg, _ in results]
-        vegetation_df = pd.concat([veg_df for _, _, veg_df in results])
-        self.create_csv_of_row_information(plot_tiles, directions, vegetation_lines_list)
-        self.create_csv_of_row_information_global(plot_tiles, directions, vegetation_lines_list)
-        self.vegetation_row_to_csv(vegetation_df)
         # TODO save csvs
         # self.save_statistics(args, total_results)
         # TODO sort stat save out
@@ -480,6 +521,32 @@ class CropRowDetector:
         plot_image_original[:3, :, :] = np.moveaxis(plot_image, -1, 0)
         return plot_image_original, direction, vegetation_lines, vegetation_df
 
+    def append_to_csv_of_row_information(self, tile: Tile, direction, vegetation_lines):
+        row_information = []
+        if direction < 0:
+            direction = np.pi + direction
+        for row_number, row in enumerate(vegetation_lines):
+            row_information.append(
+                [
+                    tile.tile_number,
+                    tile.tile_position[0],
+                    tile.tile_position[1],
+                    direction,
+                    row_number,
+                    row[0][0],
+                    row[0][1],
+                    row[1][0],
+                    row[1][1],
+                ]
+            )
+        row_information_df = pd.DataFrame(
+            row_information,
+            columns=["tile", "x_position", "y_position", "angle", "row", "x_start", "y_start", "x_end", "y_end"],
+        )
+        row_information_df.to_csv(
+            self.output_location.joinpath("row_information.csv"), mode="a", header=False, index=False
+        )
+
     def create_csv_of_row_information(self, tiles, directions, vegetation_lines_list):
         row_information = []
         for tile, direction, vegetation_lines in zip(tiles, directions, vegetation_lines_list, strict=False):
@@ -504,6 +571,46 @@ class CropRowDetector:
             columns=["tile", "x_position", "y_position", "angle", "row", "x_start", "y_start", "x_end", "y_end"],
         )
         row_information_df.to_csv(self.output_location.joinpath("row_information.csv"))
+
+    def append_to_csv_of_row_information_global(self, tile: Tile, direction, vegetation_lines):
+        row_information = []
+        if direction < 0:
+            direction = np.pi + direction
+        for row_number, row in enumerate(vegetation_lines):
+            row_information.append(
+                [
+                    tile.tile_number,
+                    tile.tile_position[0],
+                    tile.tile_position[1],
+                    direction,
+                    row_number,
+                    tile.ulc_global[0] + tile.resolution[0] * row[0][0],
+                    tile.ulc_global[1] - tile.resolution[1] * row[0][1],
+                    tile.ulc_global[0] + tile.resolution[0] * row[1][0],
+                    tile.ulc_global[1] - tile.resolution[1] * row[1][1],
+                    (2 * tile.ulc_global[0] + tile.resolution[0] * (row[0][0] + row[1][0])) / 2,
+                    (2 * tile.ulc_global[1] - tile.resolution[1] * (row[0][1] + row[1][1])) / 2,
+                ]
+            )
+        row_information_df = pd.DataFrame(
+            row_information,
+            columns=[
+                "tile",
+                "x_position",
+                "y_position",
+                "angle",
+                "row",
+                "x_start",
+                "y_start",
+                "x_end",
+                "y_end",
+                "x_mid",
+                "y_mid",
+            ],
+        )
+        row_information_df.to_csv(
+            self.output_location.joinpath("row_information_global.csv"), mode="a", header=False, index=False
+        )
 
     def create_csv_of_row_information_global(self, tiles, directions, vegetation_lines_list):
         row_information = []
@@ -543,6 +650,10 @@ class CropRowDetector:
             ],
         )
         DF_row_information.to_csv(self.output_location.joinpath("row_information_global.csv"))
+
+    def append_to_csv_vegetation_row(self, vegetation_df):
+        csv_path = self.output_location.joinpath("points_in_rows.csv")
+        vegetation_df.to_csv(csv_path, mode="a", header=False, index=False)
 
     def vegetation_row_to_csv(self, vegetation_df):
         csv_path = self.output_location.joinpath("points_in_rows.csv")
