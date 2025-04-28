@@ -137,7 +137,7 @@ class Tile:
                 self.mask = self.mask & mask[band]
         return img, mask
 
-    def save_tile(self, image: np.ndarray, mask: np.ndarray, output_tile_location: pathlib.Path) -> None:
+    def save_tile(self, image: np.ndarray, mask: np.ndarray | None, output_tile_location: pathlib.Path) -> None:
         """Save the image of the tile to a tiff file. Filename is the tile number."""
         if not output_tile_location.is_dir():
             os.makedirs(output_tile_location)

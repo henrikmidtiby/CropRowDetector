@@ -344,10 +344,7 @@ class CropRowDetector:
         bw_image = np.where(image < self.threshold_level, 255, 0)
         return bw_image
 
-    def detect_crop_rows_on_tiles_with_threads(self, segmented_ortho_tiler, plot_ortho_tiler, save_tiles=False):
-        segmented_tiles = segmented_ortho_tiler.tiles
-        plot_tiles = plot_ortho_tiler.tiles
-
+    def prepare_csv_files(self):
         # if csv files already exists give error
         if os.path.isfile(self.output_location.joinpath("row_information.csv")):
             raise FileExistsError("row_information.csv exists. Choose another output location or remove the file.")
@@ -384,6 +381,10 @@ class CropRowDetector:
             df = pd.DataFrame([], columns=["tile", "row", "x", "y", "vegetation"])
             df.to_csv(self.output_location.joinpath("points_in_rows.csv"), index=False)
 
+    def detect_crop_rows_on_tiles_with_threads(self, segmented_ortho_tiler, plot_ortho_tiler, save_tiles=False):
+        segmented_tiles = segmented_ortho_tiler.tiles
+        plot_tiles = plot_ortho_tiler.tiles
+        self.prepare_csv_files()
         if self.max_workers is None:
             self.max_workers = 1
         read_segmented_lock = threading.Lock()
@@ -407,10 +408,13 @@ class CropRowDetector:
                         segmented_img = segmented_src.read(window=segmented_tile.window_with_overlap)
                     with read_plot_lock:
                         plot_img = plot_src.read(window=plot_tile.window_with_overlap)
-                        mask_temp = plot_src.read_masks(window=plot_tile.window_with_overlap)
-                    mask = mask_temp[0]
-                    for band in range(mask_temp.shape[0]):
-                        mask = mask & mask_temp[band]
+                        if plot_img.shape[0] > 3:
+                            mask = None
+                        else:
+                            mask_temp = plot_src.read_masks(window=plot_tile.window_with_overlap)
+                            mask = mask_temp[0]
+                            for band in range(mask_temp.shape[0]):
+                                mask = mask & mask_temp[band]
                     with process_lock:
                         output_img, direction, vegetation_lines, vegetation_df = self.detect_crop_rows(
                             segmented_img, segmented_tile, plot_img, plot_tile
@@ -424,10 +428,12 @@ class CropRowDetector:
                     if save_tiles:
                         plot_tile.save_tile(output_img, mask, self.output_location.joinpath("tiles"))
                     output = plot_tile.get_window_pixels(output_img)
-                    mask = plot_tile.get_window_pixels(np.expand_dims(mask, 0)).squeeze()
+                    if mask is not None:
+                        mask = plot_tile.get_window_pixels(np.expand_dims(mask, 0)).squeeze()
                     with write_lock:
                         dst.write(output, window=plot_tile.window)
-                        dst.write_mask(mask, window=plot_tile.window)
+                        if mask is not None:
+                            dst.write_mask(mask, window=plot_tile.window)
 
                 thread_map(process, segmented_tiles, plot_tiles, max_workers=self.max_workers)
 
@@ -458,7 +464,8 @@ class CropRowDetector:
         with rasterio.open(output_filename, "w", **profile) as dst:
             for tile in new_plot_tiles:
                 dst.write(tile.output, window=tile.window)
-                dst.write_mask(tile.mask, window=tile.window)
+                if tile.output.shape[0] <= 3:
+                    dst.write_mask(tile.mask, window=tile.window)
         with rasterio.open(output_filename, "r+") as dst:
             dst.build_overviews(overview_factors, Resampling.average)
         self.create_csv_of_row_information(plot_tiles, directions, vegetation_lines_list)
