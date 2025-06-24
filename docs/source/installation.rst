@@ -34,4 +34,4 @@ All of these methods can also be used inside a virtual environment:
 
    python -m venv venv
    source venv/bin/activate
-   pip install CDC
+   pip install .
