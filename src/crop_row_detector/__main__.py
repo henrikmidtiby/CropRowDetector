@@ -4,12 +4,13 @@ import argparse
 import os
 import pathlib
 from copy import deepcopy
+from typing import Any
 
 from crop_row_detector import CropRowDetector, OrthomosaicTiles
 
 
-def parse_cmd_arguments():
-    parser = argparse.ArgumentParser(description="Detect crop rows in segmented image")
+def _get_parser():
+    parser = argparse.ArgumentParser(prog="Crop Row Detector", description="Detect crop rows in segmented image")
     parser.add_argument("segmented_orthomosaic", help="Path to the segmented_orthomosaic that you want to process.")
     parser.add_argument(
         "--orthomosaic",
@@ -109,8 +110,12 @@ def parse_cmd_arguments():
         action="store_true",
         help="Use process pools instead of threads. This may come at an extra cost of memory but will be faster.",
     )
-    args = parser.parse_args()
-    return args
+    return parser
+
+
+def _parse_args(args: Any = None) -> Any:
+    parser = _get_parser()
+    return parser.parse_args(args)
 
 
 def _create_output_location(output_directory: pathlib.Path) -> None:
@@ -169,7 +174,7 @@ def run_crop_row_detector(segmented_tiler, plot_tiler, tile_size, args):
 
 
 def _main():
-    args = parse_cmd_arguments()
+    args = _parse_args()
     _create_output_location(args.output_location)
     segmented_tiler, plot_tiler, tile_size = init_tile_separator(args)
     run_crop_row_detector(segmented_tiler, plot_tiler, tile_size, args)
