@@ -9,8 +9,10 @@ from typing import Any
 from crop_row_detector import CropRowDetector, OrthomosaicTiles
 
 
-def _get_parser():
-    parser = argparse.ArgumentParser(prog="Crop Row Detector", description="Detect crop rows in segmented image")
+def _get_parser() -> argparse.ArgumentParser:
+    parser = argparse.ArgumentParser(
+        prog="Crop Row Detector", description="Detect crop rows in segmented image", epilog="test"
+    )
     parser.add_argument("segmented_orthomosaic", help="Path to the segmented_orthomosaic that you want to process.")
     parser.add_argument(
         "--orthomosaic",
@@ -22,7 +24,7 @@ def _get_parser():
         default=500,
         nargs="+",
         type=int,
-        help="The height and width of tiles that are analyzed. Default is %(default).",
+        help="The height and width of tiles that are analyzed. Default is 500.",
     )
     parser.add_argument(
         "--tile_overlap",
@@ -76,7 +78,7 @@ def _get_parser():
         default=20,
         type=int,
         metavar="DISTANCE",
-        help="The expected distance between crop rows in pixels, default is %(default).",
+        help="The expected distance between crop rows in pixels, default is 20.",
     )
     parser.add_argument(
         "--min_angle",
