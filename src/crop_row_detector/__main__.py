@@ -126,7 +126,9 @@ def _create_output_location(output_directory: pathlib.Path) -> None:
 
 
 def init_tile_separator(args):
-    if len(args.tile_size) == 1:
+    if isinstance(args.tile_size, int):
+        tile_size = args.tile_size
+    elif len(args.tile_size) == 1:
         tile_size = args.tile_size[0]
     elif len(args.tile_size) == 2:
         tile_size = tuple(args.tile_size)
