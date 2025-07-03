@@ -8,14 +8,14 @@ See [Documentation](https://henrikmidtiby.github.io/CropRowDetector/index.html) 
 
 Development uses pre-commit for code linting and formatting. To setup development with pre-commit follow these steps after cloning the repository:
 
-1. Create a virtual environment with python 3.10 or newer:
+1. Create a virtual environment with python 3.11 or newer:
 
 ```
-python3.10 -m venv venv
+python3.11 -m venv venv
 ```
 
 > [!NOTE]
-> It may be necessary to install python 3.10 if it is not already on your system. Some system have python 3.10 as default and  'python' or 'python3' may be used instead.
+> It may be necessary to install python 3.11 if it is not already on your system. Some system have python 3.11 as default and  'python' or 'python3' may be used instead.
 
 2. Activate virtual environment:
 

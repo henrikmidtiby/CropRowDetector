@@ -4,7 +4,7 @@ Installation
 *crop-row-detector* is a python package and can be installed with pip or another package manager such as uv:
 
 .. note::
-   Python 3.10 or newer is required!
+   Python 3.11 or newer is required!
 
 .. code-block:: shell
 
