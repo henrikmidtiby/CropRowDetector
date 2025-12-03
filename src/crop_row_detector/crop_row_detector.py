@@ -192,12 +192,12 @@ class CropRowDetector:
         return plot_image
 
     def draw_crop_row(self, image, line_ends):
-        image = np.astype(image, np.uint8)  # without this opencv gives errors when trying to draw.
+        image = image.astype(np.uint8)  # without this opencv gives errors when trying to draw.
         cv2.line(image, (line_ends[0][0], line_ends[0][1]), (line_ends[1][0], line_ends[1][1]), (0, 0, 255), 1)
         return image
 
     def add_boundary_and_number_to_tile(self, image, boundary, tile_number):
-        image = np.astype(image, np.uint8)  # without this opencv gives errors when trying to draw.
+        image = image.astype(np.uint8)  # without this opencv gives errors when trying to draw.
         c1, c2, r1, r2 = boundary
         cv2.line(image, (c1, r1), (c2 - 1, r1), (0, 0, 255), 1)
         cv2.line(image, (c1, r2 - 1), (c2 - 1, r2 - 1), (0, 0, 255), 1)
@@ -289,7 +289,7 @@ class CropRowDetector:
         return missing_vegetation_df
 
     def plot_points_without_vegetation_on_crop_row(self, tile, image, missing_vegetation_df):
-        image = np.astype(image, np.uint8)  # without this opencv gives errors when trying to draw.
+        image = image.astype(np.uint8)  # without this opencv gives errors when trying to draw.
         threshold_vegetation = 60
         missing_plants = missing_vegetation_df[missing_vegetation_df["vegetation"] < threshold_vegetation]
         for _, location in missing_plants.iterrows():
