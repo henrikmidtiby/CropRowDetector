@@ -7,6 +7,7 @@ import pathlib
 
 import numpy as np
 import rasterio
+from rasterio.crs import CRS
 from rasterio.windows import Window
 
 
@@ -237,6 +238,37 @@ class OrthomosaicTiles:
         except rasterio.RasterioIOError as e:
             raise OSError(f"Could not open the orthomosaic at '{self.orthomosaic}'") from e
         return columns, rows
+
+    def get_orthomosaic_res(self) -> tuple[float, float]:
+        """
+        Read pixel size from orthomosaic.
+
+        Returns
+        -------
+        width : float
+        height : float
+        """
+        try:
+            with rasterio.open(self.orthomosaic) as src:
+                res = src.res
+        except rasterio.RasterioIOError as e:
+            raise OSError(f"Could not open the orthomosaic at '{self.orthomosaic}'") from e
+        return res
+
+    def get_orthomosaic_crs(self) -> CRS:
+        """
+        Read crs from orthomosaic.
+
+        Returns
+        -------
+        crs : CRS
+        """
+        try:
+            with rasterio.open(self.orthomosaic) as src:
+                res = src.crs
+        except rasterio.RasterioIOError as e:
+            raise OSError(f"Could not open the orthomosaic at '{self.orthomosaic}'") from e
+        return res
 
     def get_tiles(self) -> list[Tile]:
         """

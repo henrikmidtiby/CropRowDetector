@@ -28,7 +28,8 @@ class CropRowDetector:
         self.generate_debug_images = False
         self.tile_boundary = False
         self.threshold_level = 10
-        self.expected_crop_row_distance = 20
+        self.expected_crop_row_distance = None
+        self.expected_crop_row_distance_cm = None
         self.min_crop_row_angle = None
         self.max_crop_row_angle = None
         self.crop_row_angle_resolution = None
@@ -36,6 +37,11 @@ class CropRowDetector:
         self.max_workers = os.cpu_count()
         # This class is just a crop row detector in form of a collection of functions,
         # all of the information is stored in the information class Tile.
+
+    def convert_crop_row_distance_to_pixels(self, res, crs):
+        # convert to pixels. linear_units_factor is in meters per unit
+        scale = (res[0] + res[1]) / 2 * crs.linear_units_factor[1] * 100
+        self.expected_crop_row_distance = self.expected_crop_row_distance_cm / scale
 
     def ensure_parent_directory_exist(self, path: Path):
         temp_path = path.parent
@@ -382,6 +388,10 @@ class CropRowDetector:
             df.to_csv(self.output_location.joinpath("points_in_rows.csv"), index=False)
 
     def detect_crop_rows_on_tiles_with_threads(self, segmented_ortho_tiler, plot_ortho_tiler, save_tiles=False):
+        if self.expected_crop_row_distance is None:
+            self.convert_crop_row_distance_to_pixels(
+                segmented_ortho_tiler.get_orthomosaic_res(), segmented_ortho_tiler.get_orthomosaic_crs()
+            )
         segmented_tiles = segmented_ortho_tiler.tiles
         plot_tiles = plot_ortho_tiler.tiles
         self.prepare_csv_files()
@@ -441,6 +451,10 @@ class CropRowDetector:
             dst.build_overviews(overview_factors, Resampling.average)
 
     def detect_crop_rows_on_tiles_with_process_pools(self, segmented_ortho_tiler, plot_ortho_tiler, save_tiles=False):
+        if self.expected_crop_row_distance is None:
+            self.convert_crop_row_distance_to_pixels(
+                segmented_ortho_tiler.get_orthomosaic_res(), segmented_ortho_tiler.get_orthomosaic_crs()
+            )
         segmented_tiles = segmented_ortho_tiler.tiles
         plot_tiles = plot_ortho_tiler.tiles
         results = process_map(

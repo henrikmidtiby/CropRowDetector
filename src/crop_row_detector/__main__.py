@@ -10,9 +10,7 @@ from crop_row_detector import CropRowDetector, OrthomosaicTiles
 
 
 def _get_parser() -> argparse.ArgumentParser:
-    parser = argparse.ArgumentParser(
-        prog="Crop Row Detector", description="Detect crop rows in segmented image", epilog="test"
-    )
+    parser = argparse.ArgumentParser(prog="Crop Row Detector", description="Detect crop rows in segmented image")
     parser.add_argument("segmented_orthomosaic", help="Path to the segmented_orthomosaic that you want to process.")
     parser.add_argument(
         "--orthomosaic",
@@ -75,10 +73,10 @@ def _get_parser() -> argparse.ArgumentParser:
     )
     parser.add_argument(
         "--expected_crop_row_distance",
-        default=20,
+        default=25,
         type=int,
         metavar="DISTANCE",
-        help="The expected distance between crop rows in pixels, default is 20.",
+        help="The expected distance between crop rows in cm, default is 25.",
     )
     parser.add_argument(
         "--min_angle",
@@ -163,7 +161,7 @@ def run_crop_row_detector(segmented_tiler, plot_tiler, tile_size, args):
     crd.output_location = args.output_location
     crd.generate_debug_images = args.generate_debug_images
     crd.tile_boundary = args.tile_boundary
-    crd.expected_crop_row_distance = args.expected_crop_row_distance
+    crd.expected_crop_row_distance_cm = args.expected_crop_row_distance
     crd.min_crop_row_angle = args.min_angle
     crd.max_crop_row_angle = args.max_angle
     crd.crop_row_angle_resolution = args.angle_resolution
