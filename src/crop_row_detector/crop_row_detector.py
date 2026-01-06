@@ -7,6 +7,7 @@ from functools import partial
 from pathlib import Path
 
 import cv2
+import matplotlib
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
@@ -20,6 +21,8 @@ from skimage.transform import hough_line
 from tqdm.contrib.concurrent import process_map, thread_map
 
 from crop_row_detector.orthomosaic_tiler import Tile
+
+matplotlib.use("AGG")
 
 
 class CropRowDetector:

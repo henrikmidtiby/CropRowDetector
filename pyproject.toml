@@ -15,7 +15,7 @@ maintainers = [
 description = "Crop Row Detector."
 readme = "README.md"
 license-files = ["LICEN[CS]E*"]
-requires-python = ">=3.11"
+requires-python = ">=3.10"
 dependencies = [
   "matplotlib",
   "numpy",
