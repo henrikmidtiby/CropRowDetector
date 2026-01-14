@@ -353,16 +353,16 @@ class CropRowDetector:
         bw_image = np.where(image < self.threshold_level, 255, 0)
         return bw_image
 
-    def prepare_csv_files(self):
+    def prepare_csv_files(self, overwrite=False):
         # if csv files already exists give error
-        if os.path.isfile(self.output_location.joinpath("row_information.csv")):
+        if (not overwrite) and os.path.isfile(self.output_location.joinpath("row_information.csv")):
             raise FileExistsError("row_information.csv exists. Choose another output location or remove the file.")
         else:
             df = pd.DataFrame(
                 [], columns=["tile", "x_position", "y_position", "angle", "row", "x_start", "y_start", "x_end", "y_end"]
             )
             df.to_csv(self.output_location.joinpath("row_information.csv"), index=False)
-        if os.path.isfile(self.output_location.joinpath("row_information_global.csv")):
+        if (not overwrite) and os.path.isfile(self.output_location.joinpath("row_information_global.csv")):
             raise FileExistsError(
                 "row_information_global.csv exists. Choose another output location or remove the file."
             )
@@ -384,20 +384,22 @@ class CropRowDetector:
                 ],
             )
             df.to_csv(self.output_location.joinpath("row_information_global.csv"), index=False)
-        if os.path.isfile(self.output_location.joinpath("points_in_rows.csv")):
+        if (not overwrite) and os.path.isfile(self.output_location.joinpath("points_in_rows.csv")):
             raise FileExistsError("points_in_rows.csv exists. Choose another output location or remove the file.")
         else:
             df = pd.DataFrame([], columns=["tile", "row", "x", "y", "vegetation"])
             df.to_csv(self.output_location.joinpath("points_in_rows.csv"), index=False)
 
-    def detect_crop_rows_on_tiles_with_threads(self, segmented_ortho_tiler, plot_ortho_tiler, save_tiles=False):
+    def detect_crop_rows_on_tiles_with_threads(
+        self, segmented_ortho_tiler, plot_ortho_tiler, save_tiles=False, overwrite=False
+    ):
         if self.expected_crop_row_distance is None:
             self.convert_crop_row_distance_to_pixels(
                 segmented_ortho_tiler.get_orthomosaic_res(), segmented_ortho_tiler.get_orthomosaic_crs()
             )
         segmented_tiles = segmented_ortho_tiler.tiles
         plot_tiles = plot_ortho_tiler.tiles
-        self.prepare_csv_files()
+        self.prepare_csv_files(overwrite)
         if self.max_workers is None:
             self.max_workers = 1
         read_segmented_lock = threading.Lock()
@@ -453,13 +455,16 @@ class CropRowDetector:
         with rasterio.open(output_filename, "r+") as dst:
             dst.build_overviews(overview_factors, Resampling.average)
 
-    def detect_crop_rows_on_tiles_with_process_pools(self, segmented_ortho_tiler, plot_ortho_tiler, save_tiles=False):
+    def detect_crop_rows_on_tiles_with_process_pools(
+        self, segmented_ortho_tiler, plot_ortho_tiler, save_tiles=False, overwrite=False
+    ):
         if self.expected_crop_row_distance is None:
             self.convert_crop_row_distance_to_pixels(
                 segmented_ortho_tiler.get_orthomosaic_res(), segmented_ortho_tiler.get_orthomosaic_crs()
             )
         segmented_tiles = segmented_ortho_tiler.tiles
         plot_tiles = plot_ortho_tiler.tiles
+        self.prepare_csv_files(overwrite)
         results = process_map(
             partial(self.detect_crop_rows_as_process, save_tiles=save_tiles),
             segmented_tiles,

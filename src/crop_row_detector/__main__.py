@@ -32,10 +32,15 @@ def _get_parser() -> argparse.ArgumentParser:
     )
     parser.add_argument(
         "--output_location",
-        default="output/mahal",
+        default="output/crop_rows",
         metavar="FILENAME",
         type=pathlib.Path,
         help="The location in which to save the mahalanobis tiles.",
+    )
+    parser.add_argument(
+        "--overwrite",
+        action="store_true",
+        help="Overwrite output csv files if they already exist.",
     )
     parser.add_argument(
         "--save_tiles",
@@ -168,9 +173,13 @@ def run_crop_row_detector(segmented_tiler, plot_tiler, tile_size, args):
     crd.threshold_level = 12
     crd.max_workers = args.max_workers
     if args.use_process_pools:
-        crd.detect_crop_rows_on_tiles_with_process_pools(segmented_tiler, plot_tiler, save_tiles=args.save_tiles)
+        crd.detect_crop_rows_on_tiles_with_process_pools(
+            segmented_tiler, plot_tiler, save_tiles=args.save_tiles, overwrite=args.overwrite
+        )
     else:
-        crd.detect_crop_rows_on_tiles_with_threads(segmented_tiler, plot_tiler, save_tiles=args.save_tiles)
+        crd.detect_crop_rows_on_tiles_with_threads(
+            segmented_tiler, plot_tiler, save_tiles=args.save_tiles, overwrite=args.overwrite
+        )
     if args.save_statistics:
         crd.save_statistics(args.segmented_orthomosaic, args.orthomosaic, tile_size, len(plot_tiler.tiles))
 
