@@ -27,15 +27,15 @@ matplotlib.use("AGG")
 
 class CropRowDetector:
     def __init__(self):
-        self.output_location: Path | None = None
+        self.output_location: Path
         self.generate_debug_images = False
         self.tile_boundary = False
-        self.threshold_level = 10
-        self.expected_crop_row_distance = None
-        self.expected_crop_row_distance_cm = None
-        self.min_crop_row_angle = None
-        self.max_crop_row_angle = None
-        self.crop_row_angle_resolution = None
+        self.threshold_level: float = 10
+        self.expected_crop_row_distance: int | None = None
+        self.expected_crop_row_distance_cm: float
+        self.min_crop_row_angle: int
+        self.max_crop_row_angle: int
+        self.crop_row_angle_division: int
         self.run_parallel = True
         self.max_workers = os.cpu_count()
         # This class is just a crop row detector in form of a collection of functions,
@@ -66,6 +66,7 @@ class CropRowDetector:
         plt.savefig(path, dpi=300)
 
     def apply_top_hat(self, h):
+        assert self.expected_crop_row_distance is not None
         filterSize = (1, int(self.expected_crop_row_distance))
         kernel = cv2.getStructuringElement(cv2.MORPH_RECT, filterSize)
         h = cv2.morphologyEx(h, cv2.MORPH_TOPHAT, kernel)
@@ -88,7 +89,7 @@ class CropRowDetector:
         return rad_angle
 
     def apply_hough_lines(self, bw_image, debug_tile_number=None):
-        number_of_angles = int(self.crop_row_angle_resolution * (self.max_crop_row_angle - self.min_crop_row_angle))
+        number_of_angles = int(self.crop_row_angle_division * (self.max_crop_row_angle - self.min_crop_row_angle))
         min_rad_angle = self.compass_degree_angle_to_hough_rad(self.min_crop_row_angle)
         max_rad_angle = self.compass_degree_angle_to_hough_rad(self.max_crop_row_angle)
         tested_angles = np.linspace(min_rad_angle, max_rad_angle, number_of_angles)
@@ -149,6 +150,7 @@ class CropRowDetector:
         plt.axvline(x=theta[np.argmax(direction_response)] * 180 / np.pi, color=color, linestyle="dashed")
 
     def determine_offsets_of_crop_rows(self, hspace, direction_idx, debug_tile_number=None):
+        assert self.expected_crop_row_distance is not None
         signal = hspace[:, direction_idx]
         peaks, _ = find_peaks(signal, distance=self.expected_crop_row_distance / 2, prominence=0.01)
         if self.generate_debug_images and debug_tile_number is not None:
@@ -225,6 +227,7 @@ class CropRowDetector:
         return image
 
     def fill_in_gaps_in_detected_crop_rows(self, dist, prev_peak_dist, angle, image_shape):
+        assert self.expected_crop_row_distance is not None
         vegetation_lines = []
         if prev_peak_dist != 0:
             while dist - prev_peak_dist > 2 * self.expected_crop_row_distance:
@@ -314,23 +317,6 @@ class CropRowDetector:
             )
         return image
 
-    def create_data_structure_containing_crop_row(
-        self, tile, vegetation_map, counter, x_sample_coords, y_sample_coords
-    ):
-        vegetation_samples = cv2.remap(
-            vegetation_map, x_sample_coords.astype(np.float32), y_sample_coords.astype(np.float32), cv2.INTER_LINEAR
-        )
-        crop_df = pd.DataFrame(
-            {
-                "tile": tile.tile_number,
-                "row": counter,
-                "x": tile.ulc_global[0] + tile.resolution[0] * x_sample_coords,
-                "y": tile.ulc_global[1] - tile.resolution[1] * y_sample_coords,
-                "vegetation": vegetation_samples.transpose()[0],
-            }
-        )
-        return crop_df
-
     def calculate_x_and_y_sample_cords_along_crop_row(self, crop_row, direction):
         # Determine sample locations along the crop row
         start_point = (crop_row[0][0], crop_row[0][1])
@@ -359,7 +345,8 @@ class CropRowDetector:
             raise FileExistsError("row_information.csv exists. Choose another output location or remove the file.")
         else:
             df = pd.DataFrame(
-                [], columns=["tile", "x_position", "y_position", "angle", "row", "x_start", "y_start", "x_end", "y_end"]
+                [],
+                columns=["tile", "x_position", "y_position", "angle", "row", "x_start", "y_start", "x_end", "y_end"],  # type: ignore[invalid-argument-type]
             )
             df.to_csv(self.output_location.joinpath("row_information.csv"), index=False)
         if (not overwrite) and os.path.isfile(self.output_location.joinpath("row_information_global.csv")):
@@ -381,13 +368,13 @@ class CropRowDetector:
                     "y_end",
                     "x_mid",
                     "y_mid",
-                ],
+                ],  # type: ignore[invalid-argument-type]
             )
             df.to_csv(self.output_location.joinpath("row_information_global.csv"), index=False)
         if (not overwrite) and os.path.isfile(self.output_location.joinpath("points_in_rows.csv")):
             raise FileExistsError("points_in_rows.csv exists. Choose another output location or remove the file.")
         else:
-            df = pd.DataFrame([], columns=["tile", "row", "x", "y", "vegetation"])
+            df = pd.DataFrame([], columns=["tile", "row", "x", "y", "vegetation"])  # type: ignore[invalid-argument-type]
             df.to_csv(self.output_location.joinpath("points_in_rows.csv"), index=False)
 
     def detect_crop_rows_on_tiles_with_threads(
@@ -561,7 +548,7 @@ class CropRowDetector:
             )
         row_information_df = pd.DataFrame(
             row_information,
-            columns=["tile", "x_position", "y_position", "angle", "row", "x_start", "y_start", "x_end", "y_end"],
+            columns=["tile", "x_position", "y_position", "angle", "row", "x_start", "y_start", "x_end", "y_end"],  # type: ignore[invalid-argument-type]
         )
         row_information_df.to_csv(
             self.output_location.joinpath("row_information.csv"), mode="a", header=False, index=False
@@ -588,7 +575,7 @@ class CropRowDetector:
                 )
         row_information_df = pd.DataFrame(
             row_information,
-            columns=["tile", "x_position", "y_position", "angle", "row", "x_start", "y_start", "x_end", "y_end"],
+            columns=["tile", "x_position", "y_position", "angle", "row", "x_start", "y_start", "x_end", "y_end"],  # type: ignore[invalid-argument-type]
         )
         row_information_df.to_csv(self.output_location.joinpath("row_information.csv"))
 
@@ -626,7 +613,7 @@ class CropRowDetector:
                 "y_end",
                 "x_mid",
                 "y_mid",
-            ],
+            ],  # type: ignore[invalid-argument-type]
         )
         row_information_df.to_csv(
             self.output_location.joinpath("row_information_global.csv"), mode="a", header=False, index=False
@@ -667,7 +654,7 @@ class CropRowDetector:
                 "y_end",
                 "x_mid",
                 "y_mid",
-            ],
+            ],  # type: ignore[invalid-argument-type]
         )
         DF_row_information.to_csv(self.output_location.joinpath("row_information_global.csv"))
 
@@ -683,12 +670,12 @@ class CropRowDetector:
         statistics_path = self.output_location.joinpath("statistics")
         self.ensure_parent_directory_exist(statistics_path.joinpath("output_file.txt"))
         print(f'Writing statistics to the folder "{statistics_path}"')
-        with open(statistics_path + "/output_file.txt", "w") as f:
+        with open(statistics_path.joinpath("output_file.txt"), "w") as f:
             f.write("Input parameters:\n")
             f.write(f" - Segmented Orthomosaic: {segmented_orthomosaic}\n")
             f.write(f" - Orthomosaic: {orthomosaic}\n")
             f.write(f" - Tile sizes: {tile_size}\n")
-            f.write(f" - Output tile location: {self.tile_location}\n")
+            f.write(f" - Output tile location: {self.output_location.joinpath('tiles')}\n")
             f.write(f" - Generated debug images: {self.generate_debug_images}\n")
             f.write(f" - Tile boundary: {self.tile_boundary}\n")
             f.write(f" - Expected crop row distance: {self.expected_crop_row_distance}\n")
