@@ -515,7 +515,7 @@ class CropRowDetector:
             vegetation_lines, plot_image, bw_tile, debug_tile_number=segmented_tile.tile_number
         )
         vegetation_df = self.measure_vegetation_coverage_in_crop_row(
-            segmented_tile, segmented_image, plot_image, vegetation_lines, direction
+            segmented_tile, bw_tile, plot_image, vegetation_lines, direction
         )
         plot_image = self.plot_points_vegetation_on_crop_row(segmented_tile, plot_image, vegetation_df)
         if self.tile_boundary:
