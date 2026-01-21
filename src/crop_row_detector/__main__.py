@@ -2,8 +2,8 @@ from __future__ import annotations
 
 import argparse
 import os
-import pathlib
 from copy import deepcopy
+from pathlib import Path
 from typing import Any
 
 from crop_row_detector import CropRowDetector, OrthomosaicTiles
@@ -16,6 +16,9 @@ def _get_parser() -> argparse.ArgumentParser:
         "--orthomosaic",
         metavar="FILENAME",
         help="Path to the orthomosaic that you want to plot on. if not set, the segmented_orthomosaic will be used.",
+    )
+    parser.add_argument(
+        "--threshold", default=30, type=float, help="Threshold value to apply to the segmented orthomosaic."
     )
     parser.add_argument(
         "--tile_size",
@@ -34,7 +37,7 @@ def _get_parser() -> argparse.ArgumentParser:
         "--output_location",
         default="output/crop_rows",
         metavar="FILENAME",
-        type=pathlib.Path,
+        type=Path,
         help="The location in which to save the mahalanobis tiles.",
     )
     parser.add_argument(
@@ -88,14 +91,14 @@ def _get_parser() -> argparse.ArgumentParser:
         default=0,
         type=float,
         metavar="ANGLE",
-        help="The minimum angle in which the crop rows is expected. Value between 0 and 180. (In compas angles, i.e. 0 north, 90 east, 180 south and 270 west). Default is 0.",
+        help="The minimum angle in which the crop rows is expected. Value between 0 and 180. (In compass angles, i.e. 0 north, 90 east, 180 south and 270 west). Default is 0.",
     )
     parser.add_argument(
         "--max_angle",
         default=180,
         type=float,
         metavar="ANGLE",
-        help="The maximum angle in which the crop rows is expected. Value between 0 and 180. (In compas angles, i.e. 0 north, 90 east, 180 south and 270 west). Default is 180.",
+        help="The maximum angle in which the crop rows is expected. Value between 0 and 180. (In compass angles, i.e. 0 north, 90 east, 180 south and 270 west). Default is 180.",
     )
     parser.add_argument(
         "--angle_resolution",
@@ -123,7 +126,7 @@ def _parse_args(args: Any = None) -> Any:
     return parser.parse_args(args)
 
 
-def _create_output_location(output_directory: pathlib.Path) -> None:
+def _create_output_location(output_directory: Path) -> None:
     if not os.path.isdir(output_directory):
         os.makedirs(output_directory)
 
@@ -170,7 +173,7 @@ def run_crop_row_detector(segmented_tiler, plot_tiler, tile_size, args):
     crd.min_crop_row_angle = args.min_angle
     crd.max_crop_row_angle = args.max_angle
     crd.crop_row_angle_resolution = args.angle_resolution
-    crd.threshold_level = 12
+    crd.threshold_level = args.threshold
     crd.max_workers = args.max_workers
     if args.use_process_pools:
         crd.detect_crop_rows_on_tiles_with_process_pools(
@@ -193,6 +196,3 @@ def _main():
 
 if __name__ == "__main__":
     _main()
-
-# python3 crop_row_detector_main.py rødsvingel/input_data/rødsvingel.tif --orthomosaic rødsvingel/input_data/2023-04-03_Rødsvingel_1._års_Wagner_JSJ_2_ORTHO.tif --output_tile_location rødsvingel/tiles_crd --tile_size 500 --tile_boundary True --generate_debug_images True --run_specific_tile 16
-# gdal_merge.py -o rødsvingel/rødsvingel_crd.tif -a_nodata 255 rødsvingel/tiles_crd/mahal*.tiff
