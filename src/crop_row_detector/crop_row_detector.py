@@ -266,22 +266,22 @@ class CropRowDetector:
         # Approx distance between crop rows is 16 pixels.
         # I would prefer to have a kernel size that is not divisible by two.
         vegetation_map = cv2.blur(segmented_image.astype(np.uint8), (10, 10))
-        missing_vegetation_df = self.find_vegetation_in_crop_row(tile, vegetation_map, vegetation_lines, direction)
+        vegetation_df = self.find_vegetation_in_crop_row(tile, vegetation_map, vegetation_lines, direction)
         if self.generate_debug_images and tile.tile_number is not None:
             filename = self.get_debug_output_filepath("68_vegetation_samples.csv", tile.tile_number)
-            missing_vegetation_df.to_csv(filename, index=False)
+            vegetation_df.to_csv(filename, index=False)
             self.write_debug_image_to_file("60_vegetation_map.png", vegetation_map, tile.tile_number)
-            self.write_debug_image_to_file("67_missing_plants_in_crop_line.png", plot_image, tile.tile_number)
-        return missing_vegetation_df
+            self.write_debug_image_to_file("67_plants_in_crop_line.png", plot_image, tile.tile_number)
+        return vegetation_df
 
     def find_vegetation_in_crop_row(self, tile, vegetation_map, vegetation_lines, direction):
-        missing_vegetation_df_list = []
+        vegetation_df_list = []
         for row_number, crop_row in enumerate(vegetation_lines):
             x_sample_coords, y_sample_coords = self.calculate_x_and_y_sample_cords_along_crop_row(crop_row, direction)
             vegetation_samples = cv2.remap(
                 vegetation_map, x_sample_coords.astype(np.float32), y_sample_coords.astype(np.float32), cv2.INTER_LINEAR
             )
-            missing_veg_df = pd.DataFrame(
+            veg_df = pd.DataFrame(
                 {
                     "tile": tile.tile_number,
                     "row": row_number,
@@ -290,18 +290,18 @@ class CropRowDetector:
                     "vegetation": vegetation_samples.transpose()[0],
                 }
             )
-            missing_vegetation_df_list.append(missing_veg_df)
-        if missing_vegetation_df_list:
-            missing_vegetation_df = pd.concat(missing_vegetation_df_list)
+            vegetation_df_list.append(veg_df)
+        if vegetation_df_list:
+            vegetation_df = pd.concat(vegetation_df_list)
         else:
-            missing_vegetation_df = pd.DataFrame({"tile": [], "row": [], "x": [], "y": [], "vegetation": []})
-        return missing_vegetation_df
+            vegetation_df = pd.DataFrame({"tile": [], "row": [], "x": [], "y": [], "vegetation": []})
+        return vegetation_df
 
-    def plot_points_without_vegetation_on_crop_row(self, tile, image, missing_vegetation_df):
+    def plot_points_vegetation_on_crop_row(self, tile, image, vegetation_df):
         image = image.astype(np.uint8)  # without this opencv gives errors when trying to draw.
-        threshold_vegetation = 60
-        missing_plants = missing_vegetation_df[missing_vegetation_df["vegetation"] < threshold_vegetation]
-        for _, location in missing_plants.iterrows():
+        threshold_vegetation = 30
+        plants = vegetation_df[vegetation_df["vegetation"] > threshold_vegetation]
+        for _, location in plants.iterrows():
             cv2.circle(
                 image,
                 (
@@ -530,7 +530,7 @@ class CropRowDetector:
         vegetation_df = self.measure_vegetation_coverage_in_crop_row(
             segmented_tile, segmented_image, plot_image, vegetation_lines, direction
         )
-        plot_image = self.plot_points_without_vegetation_on_crop_row(segmented_tile, plot_image, vegetation_df)
+        plot_image = self.plot_points_vegetation_on_crop_row(segmented_tile, plot_image, vegetation_df)
         if self.tile_boundary:
             boundary = plot_tile.get_window_pixels_boundary()
             plot_image = self.add_boundary_and_number_to_tile(
@@ -682,7 +682,7 @@ class CropRowDetector:
     def save_statistics(self, segmented_orthomosaic, orthomosaic, tile_size, number_of_tiles):
         statistics_path = self.output_location.joinpath("statistics")
         self.ensure_parent_directory_exist(statistics_path.joinpath("output_file.txt"))
-        print(f'Writing statistics to the folder "{ statistics_path }"')
+        print(f'Writing statistics to the folder "{statistics_path}"')
         with open(statistics_path + "/output_file.txt", "w") as f:
             f.write("Input parameters:\n")
             f.write(f" - Segmented Orthomosaic: {segmented_orthomosaic}\n")
