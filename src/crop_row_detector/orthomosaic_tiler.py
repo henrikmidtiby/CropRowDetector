@@ -4,10 +4,11 @@ from __future__ import annotations
 
 import os
 import pathlib
+from typing import Any
 
 import numpy as np
 import rasterio
-from rasterio.crs import CRS
+from rasterio.crs import CRS  # type: ignore[unresolved-import]
 from rasterio.windows import Window
 
 
@@ -44,6 +45,7 @@ class Tile:
         number: int = 0,
     ):
         # Data for the tile
+        self.output: Any
         self.orthomosaic = orthomosaic
         self.size = (width, height)
         self.tile_position = position
