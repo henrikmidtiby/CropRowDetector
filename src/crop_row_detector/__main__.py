@@ -18,7 +18,13 @@ def _get_parser() -> argparse.ArgumentParser:
         help="Path to the orthomosaic that you want to plot on. if not set, the segmented_orthomosaic will be used.",
     )
     parser.add_argument(
-        "--threshold", default=30, type=float, help="Threshold value to apply to the segmented orthomosaic."
+        "--segmentation_threshold",
+        default=30,
+        type=float,
+        help="Threshold value to apply to the segmented orthomosaic.",
+    )
+    parser.add_argument(
+        "--vegetation_threshold", default=30, type=float, help="Threshold value to apply to finding vegetation."
     )
     parser.add_argument(
         "--tile_size",
@@ -172,8 +178,9 @@ def run_crop_row_detector(segmented_tiler, plot_tiler, tile_size, args):
     crd.expected_crop_row_distance_cm = args.expected_crop_row_distance
     crd.min_crop_row_angle = args.min_angle
     crd.max_crop_row_angle = args.max_angle
-    crd.crop_row_angle_resolution = args.angle_resolution
-    crd.threshold_level = args.threshold
+    crd.crop_row_angle_division = args.angle_resolution
+    crd.threshold_level = args.segmentation_threshold
+    crd.threshold_vegetation = args.vegetation_threshold
     crd.max_workers = args.max_workers
     if args.use_process_pools:
         crd.detect_crop_rows_on_tiles_with_process_pools(

@@ -31,6 +31,7 @@ class CropRowDetector:
         self.generate_debug_images = False
         self.tile_boundary = False
         self.threshold_level: float = 10
+        self.threshold_vegetation: float = 30
         self.expected_crop_row_distance: int | None = None
         self.expected_crop_row_distance_cm: float
         self.min_crop_row_angle: int
@@ -302,9 +303,8 @@ class CropRowDetector:
 
     def plot_points_vegetation_on_crop_row(self, tile, image, vegetation_df):
         image = image.astype(np.uint8)  # without this opencv gives errors when trying to draw.
-        threshold_vegetation = 30
-        plants = vegetation_df[vegetation_df["vegetation"] > threshold_vegetation]
-        for _, location in plants.iterrows():
+        missing_plants = vegetation_df[vegetation_df["vegetation"] < self.threshold_vegetation]
+        for _, location in missing_plants.iterrows():
             cv2.circle(
                 image,
                 (
