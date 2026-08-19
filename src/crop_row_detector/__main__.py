@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import argparse
 import os
-from copy import deepcopy
 from pathlib import Path
 from typing import Any
 
@@ -156,7 +155,7 @@ def init_tile_separator(args):
     )
     segmented_tiler.divide_orthomosaic_into_tiles()
     if args.orthomosaic is None:
-        plot_tiler = deepcopy(segmented_tiler)
+        plot_tiler = None
     else:
         plot_tiler = OrthomosaicTiles(
             orthomosaic=args.orthomosaic,
@@ -191,7 +190,7 @@ def run_crop_row_detector(segmented_tiler, plot_tiler, tile_size, args):
             segmented_tiler, plot_tiler, save_tiles=args.save_tiles, overwrite=args.overwrite
         )
     if args.save_statistics:
-        crd.save_statistics(args.segmented_orthomosaic, args.orthomosaic, tile_size, len(plot_tiler.tiles))
+        crd.save_statistics(args.segmented_orthomosaic, args.orthomosaic, tile_size, len(segmented_tiler.tiles))
 
 
 def _main():
