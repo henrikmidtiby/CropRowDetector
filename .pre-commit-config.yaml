@@ -3,7 +3,7 @@ fail_fast: false
 exclude: ^(manim/grpc/gen/|docs/i18n/)
 repos:
   - repo: https://github.com/pre-commit/pre-commit-hooks
-    rev: v5.0.0
+    rev: v6.0.0
     hooks:
       - id: check-ast
         name: Validate Python
@@ -12,7 +12,7 @@ repos:
       - id: end-of-file-fixer
 
   - repo: https://github.com/astral-sh/ruff-pre-commit
-    rev: v0.7.0
+    rev: v0.17.1
     hooks:
       - id: ruff
         name: ruff lint
@@ -22,7 +22,7 @@ repos:
         types: [python]
 
   - repo: https://github.com/codespell-project/codespell
-    rev: v2.3.0
+    rev: v2.4.3
     hooks:
       - id: codespell
         files: ^.*\.(py|md|)$
